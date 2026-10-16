@@ -1,5 +1,5 @@
 {% load static %}<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jellybean CRM</title></head>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jellybean CRM</title><link rel="stylesheet" href="{% static 'crm/dashboard.css' %}"></head>
 <body>
 <div id="crm-app"></div>
 {{ contacts_json|json_script:"contacts-data" }}

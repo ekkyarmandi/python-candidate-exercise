@@ -1,14 +1,17 @@
 import csv
-from decimal import Decimal, InvalidOperation
-from django.db.models import Q, Sum, Count
+from urllib.parse import urlencode
+
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from .models import Activity, Contact
+
+from .forms import ContactCreateForm, NoteForm, StatusChangeForm
+from .models import Contact
+from .selectors import get_contacts, get_dashboard_summary, get_selected_contact
+from .services import add_note, change_status, create_contact, delete_contact
+
 
 def crm_screen(request):
-    # Deliberately crowded view: query parsing, commands, validation, business logic,
-    # serialisation and presentation preparation all live here.
     q = request.GET.get("q", "").strip()
     status = request.GET.get("status", "").strip()
     selected_id = request.GET.get("contact", "").strip()
@@ -20,60 +23,38 @@ def crm_screen(request):
         status = request.POST.get("return_status", "").strip()
         selected_id = request.POST.get("contact_id", "").strip()
         if action == "add_contact":
-            name = request.POST.get("name", "").strip()
-            email = request.POST.get("email", "").strip()
-            company = request.POST.get("company", "").strip()
-            owner = request.POST.get("owner", "").strip()
-            phone = request.POST.get("phone", "").strip()
-            raw_value = request.POST.get("value", "0").strip()
-            new_status = request.POST.get("new_status", "lead").strip()
-            if not name:
-                error = "Name is required"
-            else:
-                try:
-                    money = Decimal(raw_value or "0")
-                except InvalidOperation:
-                    money = Decimal("0")
-                if new_status not in dict(Contact.STATUS_CHOICES):
-                    new_status = "lead"
-                c = Contact.objects.create(name=name, email=email, company=company, owner=owner, phone=phone, value=money, status=new_status)
-                Activity.objects.create(contact=c, kind="system", body="Contact created")
-                selected_id = str(c.id)
-                return redirect(_return_url(q, status, selected_id))
+            form = ContactCreateForm(request.POST)
+            if form.is_valid():
+                contact = create_contact(
+                    name=form.cleaned_data["name"],
+                    email=form.cleaned_data["email"],
+                    company=form.cleaned_data["company"],
+                    owner=form.cleaned_data["owner"],
+                    phone=form.cleaned_data["phone"],
+                    value=form.cleaned_data["value"],
+                    status=form.cleaned_data["new_status"],
+                )
+                return redirect(_return_url(q, status, contact.id))
+            error = form.errors.get("name", ["Name is required"])[0]
         elif action == "change_status":
-            c = get_object_or_404(Contact, pk=request.POST.get("contact_id"))
-            old = c.status
-            new = request.POST.get("new_status", "")
-            if new in dict(Contact.STATUS_CHOICES):
-                c.status = new
-                c.save()
-                Activity.objects.create(contact=c, kind="status", body=f"Status changed from {old} to {new}")
-            return redirect(_return_url(q, status, c.id))
+            contact = get_object_or_404(Contact, pk=request.POST.get("contact_id"))
+            form = StatusChangeForm(request.POST)
+            if form.is_valid():
+                change_status(contact=contact, new_status=form.cleaned_data["new_status"])
+            return redirect(_return_url(q, status, contact.id))
         elif action == "add_note":
-            c = get_object_or_404(Contact, pk=request.POST.get("contact_id"))
-            body = request.POST.get("note", "").strip()
-            if body:
-                Activity.objects.create(contact=c, body=body, kind="note")
-            return redirect(_return_url(q, status, c.id))
+            contact = get_object_or_404(Contact, pk=request.POST.get("contact_id"))
+            form = NoteForm(request.POST)
+            if form.is_valid():
+                add_note(contact=contact, body=form.cleaned_data["note"])
+            return redirect(_return_url(q, status, contact.id))
         elif action == "delete_contact":
-            c = get_object_or_404(Contact, pk=request.POST.get("contact_id"))
-            c.delete()
+            contact = get_object_or_404(Contact, pk=request.POST.get("contact_id"))
+            delete_contact(contact=contact)
             return redirect(_return_url(q, status, ""))
 
-    contacts = Contact.objects.all().order_by("-updated_at")
-    if q:
-        contacts = contacts.filter(Q(name__icontains=q) | Q(email__icontains=q) | Q(company__icontains=q) | Q(owner__icontains=q))
-    if status:
-        contacts = contacts.filter(status=status)
-
-    selected = None
-    if selected_id:
-        try:
-            selected = Contact.objects.prefetch_related("activities").get(pk=selected_id)
-        except (Contact.DoesNotExist, ValueError):
-            selected = None
-    if selected is None:
-        selected = contacts.first()
+    contacts = get_contacts(q, status)
+    selected = get_selected_contact(selected_id, contacts)
 
     rows = []
     for c in contacts:
@@ -83,16 +64,18 @@ def crm_screen(request):
     if selected:
         detail = {"id": selected.id, "name": selected.name, "email": selected.email, "company": selected.company, "phone": selected.phone, "status": selected.status, "owner": selected.owner, "value": float(selected.value), "activities": [{"kind": a.kind, "body": a.body, "created_by": a.created_by, "created_at": a.created_at.strftime("%d %b %Y %H:%M")} for a in selected.activities.all()[:20]]}
 
-    totals = Contact.objects.aggregate(total=Count("id"), pipeline=Sum("value"))
-    status_counts = {key: Contact.objects.filter(status=key).count() for key, label in Contact.STATUS_CHOICES}
-    return render(request, "crm/dashboard.html", {"contacts_json": rows, "detail_json": detail, "status_choices": Contact.STATUS_CHOICES, "q": q, "status": status, "error": error, "total": totals["total"] or 0, "pipeline": float(totals["pipeline"] or 0), "status_counts": status_counts})
+    summary = get_dashboard_summary()
+    return render(request, "crm/dashboard.html", {"contacts_json": rows, "detail_json": detail, "status_choices": Contact.STATUS_CHOICES, "q": q, "status": status, "error": error, "total": summary["total"], "pipeline": float(summary["pipeline"] or 0), "status_counts": summary["status_counts"]})
+
 
 def _return_url(q, status, contact_id):
-    bits = []
-    if q: bits.append("q=" + q.replace(" ", "+"))
-    if status: bits.append("status=" + status)
-    if contact_id: bits.append("contact=" + str(contact_id))
-    return reverse("crm") + (("?" + "&".join(bits)) if bits else "")
+    params = {}
+    if q: params["q"] = q
+    if status: params["status"] = status
+    if contact_id: params["contact"] = str(contact_id)
+    query = urlencode(params)
+    return reverse("crm") + (("?" + query) if query else "")
+
 
 def export_contacts(request):
     response = HttpResponse(content_type="text/csv")
