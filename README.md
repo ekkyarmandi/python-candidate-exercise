@@ -37,6 +37,27 @@ python manage.py test
 
 This setup is for local interview use. Local data lives in the ignored `db.sqlite3` file, and the tests use a separate test database.
 
+## OpenSpec
+
+This project uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) to plan changes. Install the CLI globally with npm (Node.js required):
+
+```bash
+npm install -g @fission-ai/openspec@latest
+```
+
+Then initialize OpenSpec in the project root:
+
+```bash
+openspec init
+```
+
+Planning artifacts live under `openspec/`. Once initialized, you can list and inspect changes with:
+
+```bash
+openspec list
+openspec status --change <change-name>
+```
+
 ## Timebox
 
 45 minutes total. Spend the first 5 minutes inspecting and explaining your plan. Make one or more meaningful improvements, then verify them.
