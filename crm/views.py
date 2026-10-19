@@ -4,13 +4,15 @@ from urllib.parse import urlencode
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.csrf import ensure_csrf_cookie
 
-from .forms import ContactCreateForm, NoteForm, StatusChangeForm
+from . import commands
+from .api import activity_to_dict, contact_to_dict
 from .models import Contact
 from .selectors import get_contacts, get_dashboard_summary, get_selected_contact
-from .services import add_note, change_status, create_contact, delete_contact
 
 
+@ensure_csrf_cookie
 def crm_screen(request):
     q = request.GET.get("q", "").strip()
     status = request.GET.get("status", "").strip()
@@ -22,35 +24,24 @@ def crm_screen(request):
         q = request.POST.get("return_q", "").strip()
         status = request.POST.get("return_status", "").strip()
         selected_id = request.POST.get("contact_id", "").strip()
+        # Compatibility shim: the React app uses /api/, but the original
+        # form-encoded actions stay accepted so existing clients keep working.
         if action == "add_contact":
-            form = ContactCreateForm(request.POST)
-            if form.is_valid():
-                contact = create_contact(
-                    name=form.cleaned_data["name"],
-                    email=form.cleaned_data["email"],
-                    company=form.cleaned_data["company"],
-                    owner=form.cleaned_data["owner"],
-                    phone=form.cleaned_data["phone"],
-                    value=form.cleaned_data["value"],
-                    status=form.cleaned_data["new_status"],
-                )
+            errors, contact = commands.create_contact_command(request.POST)
+            if contact is not None:
                 return redirect(_return_url(q, status, contact.id))
-            error = form.errors.get("name", ["Name is required"])[0]
+            error = errors.get("name", "Name is required")
         elif action == "change_status":
             contact = get_object_or_404(Contact, pk=request.POST.get("contact_id"))
-            form = StatusChangeForm(request.POST)
-            if form.is_valid():
-                change_status(contact=contact, new_status=form.cleaned_data["new_status"])
+            commands.change_status_command(contact, request.POST)
             return redirect(_return_url(q, status, contact.id))
         elif action == "add_note":
             contact = get_object_or_404(Contact, pk=request.POST.get("contact_id"))
-            form = NoteForm(request.POST)
-            if form.is_valid():
-                add_note(contact=contact, body=form.cleaned_data["note"])
+            commands.add_note_command(contact, request.POST)
             return redirect(_return_url(q, status, contact.id))
         elif action == "delete_contact":
             contact = get_object_or_404(Contact, pk=request.POST.get("contact_id"))
-            delete_contact(contact=contact)
+            commands.delete_contact_command(contact)
             return redirect(_return_url(q, status, ""))
 
     contacts = get_contacts(q, status)
@@ -58,11 +49,17 @@ def crm_screen(request):
 
     rows = []
     for c in contacts:
-        rows.append({"id": c.id, "name": c.name, "email": c.email, "company": c.company, "phone": c.phone, "status": c.status, "status_label": c.get_status_display(), "owner": c.owner, "value": float(c.value), "selected": bool(selected and selected.id == c.id), "url": _return_url(q, status, c.id)})
+        row = contact_to_dict(c)
+        row["selected"] = bool(selected and selected.id == c.id)
+        row["url"] = _return_url(q, status, c.id)
+        rows.append(row)
 
     detail = None
     if selected:
-        detail = {"id": selected.id, "name": selected.name, "email": selected.email, "company": selected.company, "phone": selected.phone, "status": selected.status, "owner": selected.owner, "value": float(selected.value), "activities": [{"kind": a.kind, "body": a.body, "created_by": a.created_by, "created_at": a.created_at.strftime("%d %b %Y %H:%M")} for a in selected.activities.all()[:20]]}
+        detail = contact_to_dict(selected)
+        detail["activities"] = [
+            activity_to_dict(activity) for activity in selected.activities.all()[:20]
+        ]
 
     summary = get_dashboard_summary()
     return render(request, "crm/dashboard.html", {"contacts_json": rows, "detail_json": detail, "status_choices": Contact.STATUS_CHOICES, "q": q, "status": status, "error": error, "total": summary["total"], "pipeline": float(summary["pipeline"] or 0), "status_counts": summary["status_counts"]})

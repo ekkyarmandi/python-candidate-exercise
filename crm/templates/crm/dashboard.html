@@ -1,10 +1,31 @@
-{% load static %}<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jellybean CRM</title><link rel="stylesheet" href="{% static 'crm/dashboard.css' %}"></head>
+{% load vite %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f6f4ef">
+  <title>Jellybean CRM</title>
+  {% vite_asset %}
+</head>
 <body>
-<div id="crm-app"></div>
+<div id="crm-app">
+  <p id="crm-boot" class="boot-message" role="status">Loading the CRM…</p>
+</div>
+<noscript>
+  <p class="boot-message">This screen needs JavaScript. Enable it and reload the page.</p>
+</noscript>
 {{ contacts_json|json_script:"contacts-data" }}
 {{ detail_json|json_script:"detail-data" }}
 <div id="server-data" data-q="{{ q }}" data-status="{{ status }}" data-total="{{ total }}" data-pipeline="{{ pipeline }}" data-error="{{ error }}"></div>
 <script>window.CRM_STATUS_CHOICES = [{% for key,label in status_choices %}["{{ key }}","{{ label }}"]{% if not forloop.last %},{% endif %}{% endfor %}];</script>
-<script src="{% static 'crm/dashboard.js' %}"></script>
-</body></html>
+<script>
+  window.setTimeout(function () {
+    if (document.querySelector('#crm-app main')) return;
+    var boot = document.getElementById('crm-boot');
+    if (!boot) return;
+    boot.textContent = 'Failed to load the CRM client. Check your connection and reload.';
+    boot.className = 'boot-message boot-message--error';
+  }, 4000);
+</script>
+</body>
+</html>

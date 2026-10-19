@@ -127,11 +127,11 @@ class ReturnUrlEncodingTests(TestCase):
 
 
 class DashboardTemplateTests(TestCase):
-    def test_template_loads_split_assets_and_payload_ids(self):
+    def test_template_loads_built_assets_and_payload_ids(self):
         Contact.objects.create(name="One")
         r = self.client.get(reverse("crm"))
-        self.assertContains(r, "crm/dashboard.css")
-        self.assertContains(r, "crm/dashboard.js")
+        self.assertContains(r, "static/crm/dist/assets/")
+        self.assertContains(r, 'type="module"')
         self.assertContains(r, 'id="contacts-data"')
         self.assertContains(r, 'id="detail-data"')
         self.assertContains(r, 'id="server-data"')
