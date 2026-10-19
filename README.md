@@ -4,7 +4,7 @@ This is a small, working Django CRM screen. It is intentionally messy and resemb
 
 ## Run it
 
-You need Python 3.10 or newer with `pip` and `venv`. The app uses a local SQLite database; no separate database server or frontend build is needed.
+You need Python 3.10 or newer with `pip` and `venv`, plus Node.js 22+ for the frontend build. The app uses a local SQLite database; no separate database server is needed.
 
 From this directory, create and activate a virtual environment:
 
@@ -19,10 +19,15 @@ Then install the dependencies, prepare the database, and start Jellybean CRM:
 
 ```bash
 python -m pip install -r requirements.txt
+cd frontend && npm ci && npm run build && cd ..
 python manage.py migrate
 python manage.py seed_crm
 python manage.py runserver
 ```
+
+The `npm run build` step is required: Django serves the compiled bundle from
+`crm/static/crm/dist/`, which is generated and not committed. Skip it and the page
+shows "Failed to load the CRM client. Check your connection and reload."
 
 Open http://127.0.0.1:8000/. Five sample contacts will be ready to explore; no login is required. You can rerun `seed_crm` without duplicating the sample contacts. Keep the server running in your terminal and stop it with Ctrl+C.
 
@@ -36,6 +41,66 @@ python manage.py test
 ```
 
 This setup is for local interview use. Local data lives in the ignored `db.sqlite3` file, and the tests use a separate test database.
+
+### Frontend
+
+The CRM screen is a React 19 + TypeScript single-page app built with Vite 8.
+Django renders the shell and the initial payload, and the built bundle takes over
+in the browser. Source lives in `frontend/`; the build lands in
+`crm/static/crm/dist/` and is served by Django, so there is no third-party CDN and
+no separate frontend service in production.
+
+Build and run:
+
+```bash
+cd frontend
+npm ci
+npm run build          # tsc -b && vite build
+cd ..
+python manage.py runserver
+```
+
+For UI work, run the Vite dev server next to Django:
+
+```bash
+python manage.py runserver 127.0.0.1:8000   # terminal 1
+cd frontend && npm run dev                  # terminal 2 → http://localhost:5173
+```
+
+The dev server proxies `/api`, `/export`, and `/static` to Django and keeps
+`localhost:5173` (and `127.0.0.1:5173`) in `CSRF_TRUSTED_ORIGINS`. Because the
+Vite page has no embedded payload, the client fetches the list on boot and calls
+`/api/csrf/` to obtain a CSRF token before its first mutation.
+
+`crm/templatetags/vite.py` resolves the hashed entry from the Vite manifest, so
+the template never hardcodes asset names. Do not commit `crm/static/crm/dist/`;
+rebuild it in CI or before deploying. The Django test suite renders the real
+template, so run `npm run build` before `python manage.py test`.
+
+The client talks to the JSON endpoints under `/api/contacts/` (list, detail,
+create, status, notes, delete). The original form-encoded `action` posts on `/`
+are still accepted for compatibility; they are handled by the same validation and
+service code.
+
+Client structure:
+
+```
+frontend/src/
+  main.tsx               mounts <App> into #crm-app
+  App.tsx                URL/notice state + mutation handlers
+  types.ts               API payload and UI types
+  components/            one component per file
+    Stats, Toolbar, Field, ContactsPanel, ContactRow, NewContactForm,
+    DetailPanel, ContactDetail, StatusForm, NoteForm, DeleteAction, ActivityFeed
+  data/
+    payload.ts           embedded-payload parsing, status choices, selection fallback
+    useCrmData.ts        data hook (abort + stale-response guard)
+  lib/
+    api.ts               fetch wrapper, CSRF bootstrap, ApiError
+    url.ts               query-string state helpers
+    format.ts            Intl money/date formatters
+  index.css              focus, responsive, and reduced-motion styles
+```
 
 ## OpenSpec
 
