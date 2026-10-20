@@ -257,6 +257,43 @@ same commands run locally and in CI. `pip-audit` is opt-in: its findings change
 without the code changing, so it belongs on a schedule rather than on every pull
 request.
 
+### Merge gate in GitHub Actions
+
+| Workflow | Trigger | Required |
+|---|---|---|
+| `.github/workflows/test.yml` | `pull_request`, `push` to `main` | yes — the merge gate |
+| `.github/workflows/ai-review.yml` | `pull_request` | no — advisory |
+
+`test.yml` is a single job: a `postgres:16` service container plus
+`./scripts/ci.sh`. It needs no secrets, so pull requests from forks run it as
+well. Keep it one job until the suite takes minutes — the dependency install
+dominates the runtime and parallel jobs would repeat it.
+
+To make it a gate:
+
+1. Open a pull request once so GitHub has seen the check.
+2. Settings → Branches → add a protection rule for `main`, enable "Require
+   status checks to pass", and select `CI / test`.
+3. Leave `AI review / review` unselected so the reviewer can fail without
+   blocking a merge.
+
+The same through the API:
+
+```bash
+gh api --method PUT repos/{owner}/{repo}/branches/main/protection --input - <<'JSON'
+{
+  "required_status_checks": {"strict": false, "contexts": ["CI / test"]},
+  "enforce_admins": true,
+  "required_pull_request_reviews": null,
+  "restrictions": null
+}
+JSON
+```
+
+Keep `strict` off: with it on, every merge to `main` forces every open pull
+request to re-run CI. Do not add `paths-ignore` to `test.yml` either — a required
+check that never runs leaves docs-only pull requests unmergeable.
+
 ## AI review (advisory)
 
 `.github/workflows/ai-review.yml` runs `scripts/ai_review.py` on every pull
