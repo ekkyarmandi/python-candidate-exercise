@@ -220,36 +220,45 @@ frontend/src/
 
 ## Continuous integration
 
-`scripts/ci.sh` is the single entrypoint. CI calls it and nothing else, so the
-merge gate cannot drift from what a developer can run locally:
+`scripts/ci.sh` is the single entrypoint, split into stages. CI runs one stage
+per job, so independent checks finish in parallel, and a final `gate` job
+requires all of them. With no argument the script runs every stage in order, so
+the merge gate cannot drift from what a developer can run locally:
 
 ```bash
-./scripts/ci.sh          # everything, against PostgreSQL from the environment or .env
-AUDIT=1 ./scripts/ci.sh  # also audit dependencies (needs network)
+./scripts/ci.sh              # every stage, against PostgreSQL from the environment or .env
+./scripts/ci.sh static       # ruff, Django checks, migrations, bandit
+./scripts/ci.sh frontend     # npm ci, lint, Vite build
+./scripts/ci.sh test         # Django suite; needs the built frontend
+./scripts/ci.sh unit         # the AI reviewer's own tests
+./scripts/ci.sh audit        # dependency audit (needs network)
+AUDIT=1 ./scripts/ci.sh      # every stage, including the audit
 ```
 
-It requires `uv`, Node.js 22+, and a reachable PostgreSQL. `DATABASE_URL` must
-resolve to a `postgres://` URL (in the environment or `.env`); a SQLite fallback
+It requires `uv`, Node.js 22+, and a reachable PostgreSQL for `test`.
+`DATABASE_URL` must resolve to a `postgres://` URL (in the environment or
+`.env`); a SQLite fallback
 is refused, because a SQLite pass hides the query, ordering and cast differences
 that only appear on the engine production uses. Start the database with
 `docker compose up -d`; `DB_WAIT_SECONDS` (default 60) controls how long the
 script waits for it to accept connections. Django creates and drops its own test
 database, so the configured one is never touched.
 
-In order, it runs:
+`all` runs the stages in this order:
 
-| Step | Command | Fails when |
-|---|---|---|
-| Dependencies | `uv sync --locked` | `uv.lock` is out of date with `pyproject.toml` |
-| Database | resolves settings, waits for connections | the effective engine is not PostgreSQL, or the server never answers |
-| Lint and format | `ruff check .`, `ruff format --check .` | style or import problems |
-| System checks | `manage.py check` | the project is misconfigured |
-| Deployment checks | `manage.py check --deploy --fail-level WARNING` with prod settings | a security setting regresses, e.g. `DEBUG` or insecure cookies |
-| Migrations | `manage.py makemigrations --check --dry-run` | a model change was committed without its migration |
-| Frontend | `npm ci`, `oxlint`, `tsc -b && vite build` | the bundle does not build; the suite renders the real template, so the build comes first |
-| Tests | `coverage run manage.py test`, `coverage report` | a test fails, or coverage drops below `fail_under` in `pyproject.toml` |
-| AI review script | `python -m unittest discover -s scripts` | the advisory reviewer's own logic breaks |
-| Static security | `bandit -r crm messycrm` | a new medium or high finding |
+| Stage | Step | Command | Fails when |
+|---|---|---|---|
+| all | Dependencies | `uv sync --locked` | `uv.lock` is out of date with `pyproject.toml` |
+| static | Lint and format | `ruff check .`, `ruff format --check .` | style or import problems |
+| static | System checks | `manage.py check` | the project is misconfigured |
+| static | Deployment checks | `manage.py check --deploy --fail-level WARNING` with prod settings | a security setting regresses, e.g. `DEBUG` or insecure cookies |
+| static | Migrations | `manage.py makemigrations --check --dry-run` | a model change was committed without its migration |
+| static | Static security | `bandit -r crm messycrm` | a new medium or high finding |
+| frontend | Frontend | `npm ci`, `oxlint`, `tsc -b && vite build` | the bundle does not build; the suite renders the real template, so the build comes first |
+| test | Database | resolves settings, waits for connections | the effective engine is not PostgreSQL, or the server never answers |
+| test | Tests | `coverage run manage.py test`, `coverage report` | a test fails, or coverage drops below `fail_under` in `pyproject.toml` |
+| unit | AI review script | `python -m unittest discover -s scripts` | the advisory reviewer's own logic breaks |
+| audit | Dependency audit | `pip-audit` | a pinned dependency has a known vulnerability |
 
 The checks are deterministic because the dependency set is locked, migrations
 must be committed, the test settings module needs no ambient secrets, and the
@@ -261,28 +270,46 @@ request.
 
 | Workflow | Trigger | Required |
 |---|---|---|
-| `.github/workflows/test.yml` | `pull_request`, `push` to `main` | yes — the merge gate |
-| `.github/workflows/ai-review.yml` | `pull_request` | no — advisory |
+| `.github/workflows/test.yml` | `pull_request`, `push` to `main`, manual | yes — the merge gate |
+| `.github/workflows/audit.yml` | weekly schedule, manual | no — dependency audit |
 
-`test.yml` is a single job: a `postgres:16` service container plus
-`./scripts/ci.sh`. It needs no secrets, so pull requests from forks run it as
-well. Keep it one job until the suite takes minutes — the dependency install
-dominates the runtime and parallel jobs would repeat it.
+`test.yml` runs one job per stage, then the advisory review:
+
+```
+static ────┐
+unit ──────┼──> gate ───┐
+frontend ──┤             ├──> ai-review
+test ──────┘             │
+changes ─────────────────┘
+```
+
+`test` needs `frontend` because the suite resolves the Vite manifest; the
+frontend job uploads the bundle as a short-lived artifact and `test` downloads
+it instead of rebuilding. Everything else runs in parallel, and `gate` is a
+fan-in job with `if: always()` that fails unless every stage succeeded.
+`ai-review` runs only after `gate` succeeds and only for non-draft pull
+requests that change application code. `changes` checks the diff for the code
+roots and skips the review job entirely — and therefore posts no comment — when
+the pull request only touches documentation or configuration.
+
+`gate` is the only required status check. Adding, removing or reordering a
+stage is therefore a change to the workflow, not to the repository settings.
+The gate jobs need no secrets, so pull requests from forks run them as well.
 
 To make it a gate:
 
 1. Open a pull request once so GitHub has seen the check.
 2. Settings → Branches → add a protection rule for `main`, enable "Require
-   status checks to pass", and select `CI / test`.
-3. Leave `AI review / review` unselected so the reviewer can fail without
-   blocking a merge.
+   status checks to pass", and select `CI / gate`.
+3. Leave `CI / ai-review` unselected so the reviewer can fail without blocking
+   a merge.
 
 The same through the API:
 
 ```bash
 gh api --method PUT repos/{owner}/{repo}/branches/main/protection --input - <<'JSON'
 {
-  "required_status_checks": {"strict": false, "contexts": ["CI / test"]},
+  "required_status_checks": {"strict": false, "contexts": ["CI / gate"]},
   "enforce_admins": true,
   "required_pull_request_reviews": null,
   "restrictions": null
@@ -296,15 +323,21 @@ check that never runs leaves docs-only pull requests unmergeable.
 
 ## AI review (advisory)
 
-`.github/workflows/ai-review.yml` runs `scripts/ai_review.py` on every pull
-request and keeps **one** sticky comment up to date. It is not a gate: the job
-exits 0 when the model errors, times out, the secret is missing, or the PR comes
-from a fork, so it can never block a merge.
+`.github/workflows/test.yml` runs `scripts/ai_review.py` as its last job, after
+`gate`, and keeps **one** sticky comment up to date. It runs only for non-draft
+pull requests that change application code; a pull request that only changes
+documentation or configuration skips the job, so no comment is created. It is
+not part of the required check: the job exits 0 when the model errors, times
+out, the secret is missing, or the PR comes from a fork, so it can never block
+a merge. If the model returns an empty or non-JSON completion, the script
+retries once and then publishes nothing instead of replacing the sticky comment
+with a placeholder.
 
 What it sends: the diff (capped at 60k characters), the full contents of the
 changed files plus their first-party imports (capped), and the same rubric the
-local agent uses — `.pi/skills/django-reviewer/SKILL.md`. Lockfiles, the Vite
-bundle, binaries and migrations (unless the PR is migration-only) are skipped.
+local agent uses — `.pi/skills/django-reviewer/SKILL.md`. Documentation, YAML/TOML
+configuration, lockfiles, the Vite bundle, binaries and migrations (unless the
+PR is migration-only) are skipped.
 PR text and code are wrapped in an `<untrusted>` block and the system prompt says
 to treat them as data, never as instructions.
 
