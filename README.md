@@ -271,34 +271,38 @@ request.
 | Workflow | Trigger | Required |
 |---|---|---|
 | `.github/workflows/test.yml` | `pull_request`, `push` to `main`, manual | yes — the merge gate |
-| `.github/workflows/ai-review.yml` | `pull_request` | no — advisory |
 | `.github/workflows/audit.yml` | weekly schedule, manual | no — dependency audit |
 
-`test.yml` runs one job per stage:
+`test.yml` runs one job per stage, then the advisory review:
 
 ```
 static ────┐
-unit ──────┼──> gate
-frontend ──┤
-test ──────┘   (test also needs frontend)
+unit ──────┼──> gate ───┐
+frontend ──┤             ├──> ai-review
+test ──────┘             │
+changes ─────────────────┘
 ```
 
 `test` needs `frontend` because the suite resolves the Vite manifest; the
 frontend job uploads the bundle as a short-lived artifact and `test` downloads
 it instead of rebuilding. Everything else runs in parallel, and `gate` is a
 fan-in job with `if: always()` that fails unless every stage succeeded.
+`ai-review` runs only after `gate` succeeds and only for non-draft pull
+requests that change application code. `changes` checks the diff for the code
+roots and skips the review job entirely — and therefore posts no comment — when
+the pull request only touches documentation or configuration.
 
 `gate` is the only required status check. Adding, removing or reordering a
 stage is therefore a change to the workflow, not to the repository settings.
-`test.yml` needs no secrets, so pull requests from forks run it as well.
+The gate jobs need no secrets, so pull requests from forks run them as well.
 
 To make it a gate:
 
 1. Open a pull request once so GitHub has seen the check.
 2. Settings → Branches → add a protection rule for `main`, enable "Require
    status checks to pass", and select `CI / gate`.
-3. Leave `AI review / review` unselected so the reviewer can fail without
-   blocking a merge.
+3. Leave `CI / ai-review` unselected so the reviewer can fail without blocking
+   a merge.
 
 The same through the API:
 
@@ -319,16 +323,15 @@ check that never runs leaves docs-only pull requests unmergeable.
 
 ## AI review (advisory)
 
-`.github/workflows/ai-review.yml` runs `scripts/ai_review.py` on pull requests
-that touch application code, and keeps **one** sticky comment up to date. The
-workflow's `paths` filter lists the code roots (`crm/`, `messycrm/`, `scripts/`,
-`frontend/src/`, plus `frontend/index.html` and `manage.py`), so a pull request
-that only changes documentation,
-configuration, workflows or lockfiles never starts the job or pays for a model
-call. A mixed pull request still runs, but the script drops the non-code files
-from the reviewed set. It is not a gate: the job exits 0 when the model errors,
-times out, the secret is missing, or the PR comes from a fork, so it can never
-block a merge.
+`.github/workflows/test.yml` runs `scripts/ai_review.py` as its last job, after
+`gate`, and keeps **one** sticky comment up to date. It runs only for non-draft
+pull requests that change application code; a pull request that only changes
+documentation or configuration skips the job, so no comment is created. It is
+not part of the required check: the job exits 0 when the model errors, times
+out, the secret is missing, or the PR comes from a fork, so it can never block
+a merge. If the model returns an empty or non-JSON completion, the script
+retries once and then publishes nothing instead of replacing the sticky comment
+with a placeholder.
 
 What it sends: the diff (capped at 60k characters), the full contents of the
 changed files plus their first-party imports (capped), and the same rubric the

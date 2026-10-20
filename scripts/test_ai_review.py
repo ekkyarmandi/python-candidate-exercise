@@ -108,11 +108,16 @@ class ParseReviewTests(unittest.TestCase):
         self.assertEqual(review["findings"][0]["severity"], "blocking")
         self.assertEqual(review["findings"][0]["line"], 7)
 
-    def test_falls_back_to_raw_text(self):
+    def test_rejects_prose_without_echoing_it(self):
         review = ai_review.parse_review("Looks reasonable to me.")
         self.assertTrue(review["parse_error"])
-        self.assertIn("Looks reasonable", review["summary"])
+        self.assertEqual(review["summary"], "")
         self.assertEqual(review["findings"], [])
+
+    def test_treats_an_empty_response_as_a_parse_error(self):
+        review = ai_review.parse_review("   ")
+        self.assertTrue(review["parse_error"])
+        self.assertEqual(review["summary"], "")
 
     def test_caps_findings_and_coerces_unknown_severity(self):
         raw = [{"severity": "catastrophic", "title": f"f{index}"} for index in range(20)]
@@ -187,6 +192,24 @@ class MainTests(unittest.TestCase):
         ):
             self.assertEqual(ai_review.main(), 0)
         self.assertIn("DEEPSEEK_API_KEY", output.getvalue())
+
+    def test_does_not_publish_when_the_model_returns_no_json(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".diff", delete=False) as handle:
+            handle.write(DIFF)
+            diff_file = handle.name
+        self.addCleanup(os.unlink, diff_file)
+
+        env = {"AI_REVIEW_DIFF_FILE": diff_file, "DEEPSEEK_API_KEY": "key"}
+        with (
+            mock.patch.dict(os.environ, env),
+            mock.patch.object(ai_review, "call_model", return_value=("", {})) as model,
+            mock.patch.object(ai_review, "write_step_summary"),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(ai_review.main(), 0)
+
+        self.assertEqual(model.call_count, 2)
+        self.assertNotIn(ai_review.MARKER, output.getvalue())
 
 
 if __name__ == "__main__":

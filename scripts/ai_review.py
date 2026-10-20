@@ -293,7 +293,7 @@ def parse_review(content: str) -> dict:
     payload = _json_object(text)
     if payload is None:
         return {
-            "summary": truncate(text, 2000) or "The model returned an empty response.",
+            "summary": "",
             "findings": [],
             "skipped": [],
             "parse_error": True,
@@ -312,8 +312,6 @@ def _cell(text: str) -> str:
 
 def render_comment(review: dict, *, model: str, sha: str, elapsed: float, diff_chars: int) -> str:
     lines = [MARKER, "## AI review", ""]
-    if review["parse_error"]:
-        lines += ["> The model did not return valid JSON; showing its raw response.", ""]
     lines.append(review["summary"])
 
     findings = review["findings"]
@@ -339,7 +337,7 @@ def render_comment(review: dict, *, model: str, sha: str, elapsed: float, diff_c
             details.append("- " + " ".join(parts))
         if details:
             lines += ["", "<details><summary>Details</summary>", "", *details, "", "</details>"]
-    elif not review["parse_error"]:
+    elif not findings:
         lines += ["", "No issues found in the reviewed diff."]
 
     if review["skipped"]:
@@ -498,6 +496,25 @@ def main() -> int:
     )
     content, _usage = call_model(messages, api_key=api_key, model=model)
     review = parse_review(content)
+
+    # An empty or non-JSON completion is not a review. Retry once, then skip
+    # publishing entirely instead of replacing the sticky comment with noise.
+    if review["parse_error"]:
+        warn("AI review: the model returned no valid JSON; retrying once.")
+        content, _usage = call_model(messages, api_key=api_key, model=model)
+        review = parse_review(content)
+
+    if review["parse_error"]:
+        warn("AI review skipped: the model returned no valid JSON.")
+        write_step_summary(
+            model=model,
+            review={"findings": []},
+            elapsed=time.monotonic() - started,
+            diff_chars=len(diff),
+            action="skipped (no valid JSON)",
+        )
+        return 0
+
     review["skipped"] = review["skipped"] or [
         f"{path} (not code, generated or binary)" for path in skipped[:3]
     ]
