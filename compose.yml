@@ -1,12 +1,11 @@
-# Local development services for Jellybean CRM.
+# Local development services.
 #
-#   docker compose up -d          # start PostgreSQL
-#   docker compose down           # stop it (data survives in the pgdata volume)
-#   docker compose down -v        # stop it and delete the data
-#
-# `docker compose` reads .env automatically. The POSTGRES_* values only apply on
-# the volume's first start, so keep them in agreement with DATABASE_URL — that
-# string is what Django actually connects with.
+#   docker compose up -d                        # PostgreSQL only
+#   docker compose --profile app up -d --build  # PostgreSQL + backend (gunicorn)
+#   docker compose --profile app down           # stop the profile too, or `down`
+#                                               # leaves it running and holding
+#                                               # the network open
+
 services:
   db:
     image: postgres:16-alpine
@@ -17,7 +16,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-messycrm}
     ports:
-      # Loopback only: the database is for this machine, not the network.
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -26,6 +24,46 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  migrate:
+    build: .
+    profiles: ["app"]
+    env_file: .env
+    environment: &backend-env
+      DJANGO_SETTINGS_MODULE: messycrm.settings.prod
+      # Inside the network the database is `db`, not the localhost in .env.
+      DATABASE_URL: postgres://${POSTGRES_USER:-messycrm}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-messycrm}
+      DJANGO_SECURE_SSL_REDIRECT: "false"
+    entrypoint: ["python", "manage.py"]
+    command: ["migrate", "--noinput"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build: .
+    profiles: ["app"]
+    env_file: .env
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8000}:8000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import urllib.request
+          urllib.request.urlopen("http://127.0.0.1:8000/health/", timeout=5)
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   pgdata:

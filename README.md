@@ -135,6 +135,29 @@ DJANGO_SETTINGS_MODULE=messycrm.settings.test python manage.py test
 This setup is for local interview use. Local data lives in the database
 `DATABASE_URL` points at, and the tests use a separate test database.
 
+### Backend container
+
+The backend can run in Docker the way it will be deployed: gunicorn, production
+settings, static files served by WhiteNoise and a non-root user. The image builds
+the Vite bundle and installs only the locked production dependencies.
+
+```bash
+docker compose --profile app up -d --build   # db + migrate + web
+curl http://127.0.0.1:8000/health/
+docker compose --profile app logs -f web
+docker compose --profile app down            # the database keeps its data
+```
+
+Use the profile for `down` as well: a plain `docker compose down` only stops
+services in the active profiles, so it removes the database, leaves the backend
+running, and reports that the network is still in use.
+
+`migrate` is a one-shot service that must exit successfully before `web` starts,
+so the app never comes up against a half-migrated schema. Inside the compose
+network `DATABASE_URL` points at the `db` service, and
+`DJANGO_SECURE_SSL_REDIRECT` is off because TLS is terminated in front of the
+stack. `WEB_PORT` changes the published port.
+
 ### Frontend
 
 The CRM screen is a React 19 + TypeScript single-page app built with Vite 8.

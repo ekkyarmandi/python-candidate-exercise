@@ -356,3 +356,11 @@ class CsrfDevOriginTests(TestCase):
         response = self.post("http://evil.example")
         self.assertEqual(response.status_code, 403)
         self.assertFalse(Contact.objects.exists())
+
+
+class HealthCheckTests(TestCase):
+    def test_health_reports_ok_without_touching_the_database(self):
+        with self.assertNumQueries(0):
+            response = self.client.get(reverse("health"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ok"})

@@ -10,8 +10,10 @@ requires-python = ">=3.14"
 dependencies = [
     "dj-database-url>=3.1.2",
     "django>=4.2,<6.0",
+    "gunicorn>=23",
     "psycopg[binary]>=3.3.6",
     "python-decouple>=3.8",
+    "whitenoise>=6.8",
 ]
 
 # Quality tooling. Installed by `uv sync` (dev is the default group); production

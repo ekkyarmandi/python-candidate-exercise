@@ -105,6 +105,12 @@ def csrf_token(request):
     return HttpResponse(status=204)
 
 
+@require_GET
+def health(request):
+    """Liveness probe: no database, no template."""
+    return JsonResponse({"status": "ok"})
+
+
 def parse_json_body(request):
     """Return the decoded JSON object, or None when the body is unusable."""
     try:
