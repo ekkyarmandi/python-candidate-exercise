@@ -58,8 +58,11 @@ services:
         - python
         - -c
         - |
+          import json
           import urllib.request
-          urllib.request.urlopen("http://127.0.0.1:8000/health/", timeout=5)
+
+          with urllib.request.urlopen("http://127.0.0.1:8000/health/", timeout=5) as response:
+              assert json.loads(response.read()) == {"status": "ok"}
       interval: 10s
       timeout: 5s
       retries: 5

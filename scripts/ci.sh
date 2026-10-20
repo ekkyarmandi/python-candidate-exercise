@@ -107,6 +107,9 @@ step "Tests: Django suite against PostgreSQL with coverage"
 uv run --no-sync coverage run manage.py test
 uv run --no-sync coverage report
 
+step "AI review: unit tests"
+uv run --no-sync python -m unittest discover -s scripts -p "test_*.py"
+
 step "Security: static analysis"
 uv run --no-sync bandit -q -r crm messycrm -x '*/migrations/*'
 

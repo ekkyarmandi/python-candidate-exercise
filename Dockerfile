@@ -17,7 +17,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_PROJECT_ENVIRONMENT=/app/.venv \
     PATH="/app/.venv/bin:$PATH"
 
-COPY --from=ghcr.io/astral-sh/uv:0.13 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /uvx /bin/
 
 WORKDIR /app
 

@@ -360,6 +360,7 @@ class CsrfDevOriginTests(TestCase):
 
 class HealthCheckTests(TestCase):
     def test_health_reports_ok_without_touching_the_database(self):
+        self.assertEqual(reverse("health"), "/health/")
         with self.assertNumQueries(0):
             response = self.client.get(reverse("health"))
         self.assertEqual(response.status_code, 200)

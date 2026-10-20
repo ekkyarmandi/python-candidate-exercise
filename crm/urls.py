@@ -4,7 +4,6 @@ from . import api, views
 
 urlpatterns = [
     path("", views.crm_screen, name="crm"),
-    path("health/", api.health, name="health"),
     path("export/", views.export_contacts, name="export_contacts"),
     path("api/csrf/", api.csrf_token, name="api_csrf"),
     path("api/contacts/", api.contacts_collection, name="api_contacts"),

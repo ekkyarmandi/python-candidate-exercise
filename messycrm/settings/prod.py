@@ -13,6 +13,9 @@ from .base import database_from_url, env, required
 
 DEBUG = False
 
+MIDDLEWARE = list(MIDDLEWARE)
+MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+
 SECRET_KEY = required("DJANGO_SECRET_KEY")
 ALLOWED_HOSTS = required("DJANGO_ALLOWED_HOSTS", cast=Csv())
 CSRF_TRUSTED_ORIGINS = env("DJANGO_CSRF_TRUSTED_ORIGINS", default="", cast=Csv())

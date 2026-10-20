@@ -248,6 +248,7 @@ In order, it runs:
 | Migrations | `manage.py makemigrations --check --dry-run` | a model change was committed without its migration |
 | Frontend | `npm ci`, `oxlint`, `tsc -b && vite build` | the bundle does not build; the suite renders the real template, so the build comes first |
 | Tests | `coverage run manage.py test`, `coverage report` | a test fails, or coverage drops below `fail_under` in `pyproject.toml` |
+| AI review script | `python -m unittest discover -s scripts` | the advisory reviewer's own logic breaks |
 | Static security | `bandit -r crm messycrm` | a new medium or high finding |
 
 The checks are deterministic because the dependency set is locked, migrations
@@ -255,6 +256,38 @@ must be committed, the test settings module needs no ambient secrets, and the
 same commands run locally and in CI. `pip-audit` is opt-in: its findings change
 without the code changing, so it belongs on a schedule rather than on every pull
 request.
+
+## AI review (advisory)
+
+`.github/workflows/ai-review.yml` runs `scripts/ai_review.py` on every pull
+request and keeps **one** sticky comment up to date. It is not a gate: the job
+exits 0 when the model errors, times out, the secret is missing, or the PR comes
+from a fork, so it can never block a merge.
+
+What it sends: the diff (capped at 60k characters), the full contents of the
+changed files plus their first-party imports (capped), and the same rubric the
+local agent uses — `.pi/skills/django-reviewer/SKILL.md`. Lockfiles, the Vite
+bundle, binaries and migrations (unless the PR is migration-only) are skipped.
+PR text and code are wrapped in an `<untrusted>` block and the system prompt says
+to treat them as data, never as instructions.
+
+| Variable | Purpose |
+|---|---|
+| `DEEPSEEK_API_KEY` | repository secret; without it the job skips and exits 0 |
+| `AI_REVIEW_MODEL` | optional, defaults to `deepseek-chat` |
+| `GITHUB_TOKEN` | provided by Actions; posts or updates the comment |
+
+Run it locally against a saved diff; this prints the comment instead of posting:
+
+```bash
+git show HEAD --format= > /tmp/pr.diff
+AI_REVIEW_DIFF_FILE=/tmp/pr.diff DEEPSEEK_API_KEY=... python scripts/ai_review.py
+```
+
+Findings are labelled `blocking`, `should-fix` or `nit`, ordered by severity, and
+the workflow step summary records the model, latency and counts. The metric that
+matters is the accept rate: if findings are consistently wrong, fix the rubric in
+`.pi/skills/django-reviewer`, which both the local agent and CI read.
 
 ## OpenSpec
 
