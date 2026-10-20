@@ -35,6 +35,28 @@ class SelectPathsTests(unittest.TestCase):
         self.assertIn("uv.lock", skipped)
         self.assertIn("crm/static/crm/dist/assets/main.js", skipped)
 
+    def test_skips_documentation_and_configuration(self):
+        diff = (
+            "diff --git a/README.md b/README.md\nnew file mode 100644\n"
+            "diff --git a/openspec/specs/crm/spec.md b/openspec/specs/crm/spec.md\n"
+            "new file mode 100644\n"
+            "diff --git a/.github/workflows/test.yml b/.github/workflows/test.yml\n"
+            "new file mode 100644\n"
+            "diff --git a/pyproject.toml b/pyproject.toml\nnew file mode 100644\n"
+            "diff --git a/Dockerfile b/Dockerfile\nnew file mode 100644\n"
+            "diff --git a/compose.yml b/compose.yml\nnew file mode 100644\n"
+            "diff --git a/frontend/package.json b/frontend/package.json\nnew file mode 100644\n"
+        )
+        reviewable, skipped = ai_review.select_paths(diff)
+        self.assertEqual(reviewable, [])
+        self.assertEqual(len(skipped), 7)
+
+    def test_keeps_code_when_documentation_changes_alongside_it(self):
+        combined = DIFF + "diff --git a/README.md b/README.md\nnew file mode 100644\n"
+        reviewable, skipped = ai_review.select_paths(combined)
+        self.assertEqual(reviewable, ["crm/models.py"])
+        self.assertIn("README.md", skipped)
+
     def test_keeps_migrations_when_nothing_else_changed(self):
         reviewable, skipped = ai_review.select_paths(MIGRATION_DIFF)
         self.assertEqual(reviewable, ["crm/migrations/0002_contact_str.py"])

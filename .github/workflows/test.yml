@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,7 +14,71 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  static:
+    name: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.0"
+          enable-cache: true
+
+      - name: Run static checks
+        run: ./scripts/ci.sh static
+
+  unit:
+    name: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.0"
+          enable-cache: true
+
+      - name: Run the AI reviewer's unit tests
+        run: ./scripts/ci.sh unit
+
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Lint, type check and build
+        run: ./scripts/ci.sh frontend
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vite-dist
+          path: crm/static/crm/dist
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
   test:
+    name: test
+    needs: frontend
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -38,16 +103,35 @@ jobs:
         with:
           python-version: "3.14"
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
       - uses: astral-sh/setup-uv@v6
         with:
           version: "0.13.0"
           enable-cache: true
 
-      - name: Run the merge gate
-        run: ./scripts/ci.sh
+      - uses: actions/download-artifact@v4
+        with:
+          name: vite-dist
+          path: crm/static/crm/dist
+
+      - name: Run the suite
+        run: ./scripts/ci.sh test
+
+  gate:
+    name: gate
+    if: always()
+    needs: [static, unit, frontend, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every stage to succeed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "stage results: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              echo "::error::a required stage finished with '$result'"
+              exit 1
+            fi
+          done
+          echo "all stages passed"

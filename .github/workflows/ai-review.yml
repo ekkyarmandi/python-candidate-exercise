@@ -3,6 +3,13 @@ name: AI review
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - "crm/**"
+      - "messycrm/**"
+      - "scripts/**"
+      - "frontend/src/**"
+      - "frontend/index.html"
+      - "manage.py"
 
 permissions:
   contents: read

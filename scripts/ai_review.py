@@ -20,7 +20,7 @@ from pathlib import Path
 
 MARKER = "<!-- ai-review:sticky -->"
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
-DEFAULT_MODEL = "deepseek-chat"
+DEFAULT_MODEL = "deepseek-flash"
 RUBRIC_PATH = Path(".pi/skills/django-reviewer/SKILL.md")
 
 MAX_DIFF_CHARS = 60_000
@@ -35,10 +35,18 @@ RETRY_DELAY = 3
 RETRY_CODES = {429, 500, 502, 503, 504}
 
 SKIP_PATH_PATTERNS = (
+    # Generated or vendored artifacts.
     re.compile(r"(^|/)(uv\.lock|package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$"),
     re.compile(r"(^|/)node_modules/"),
     re.compile(r"^crm/static/"),
     re.compile(r"\.(png|jpe?g|gif|webp|ico|svg|woff2?|ttf|pdf|zip|map)$"),
+    # Documentation and configuration: reviewed by people, and the deterministic
+    # pipeline already validates the parts that can break a build. The workflow
+    # path filter also stops a docs-only pull request from starting this job;
+    # these patterns keep mixed pull requests from sending them to the model.
+    re.compile(r"\.(md|markdown|rst|txt)$"),
+    re.compile(r"(^|/)(Dockerfile|compose\.ya?ml|\.env(\..*)?|\.gitignore|\.dockerignore)$"),
+    re.compile(r"\.(ya?ml|toml|ini|cfg|json)$"),
 )
 MIGRATION_PATTERN = re.compile(r"(^|/)migrations/")
 FIRST_PARTY_ROOTS = {"crm", "messycrm"}
@@ -463,7 +471,7 @@ def main() -> int:
 
     reviewable, skipped = select_paths(diff)
     if not reviewable:
-        notice("AI review skipped: only generated or binary files changed.")
+        notice("AI review skipped: no reviewable code changed.")
         return 0
 
     if len(diff) > MAX_DIFF_CHARS:
@@ -491,7 +499,7 @@ def main() -> int:
     content, _usage = call_model(messages, api_key=api_key, model=model)
     review = parse_review(content)
     review["skipped"] = review["skipped"] or [
-        f"{path} (generated or binary)" for path in skipped[:3]
+        f"{path} (not code, generated or binary)" for path in skipped[:3]
     ]
     elapsed = time.monotonic() - started
     body = render_comment(
