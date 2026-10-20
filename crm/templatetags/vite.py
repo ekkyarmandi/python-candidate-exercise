@@ -29,9 +29,7 @@ def _read_manifest():
             "Frontend assets are missing. Run `npm ci && npm run build` in frontend/."
         ) from exc
     except json.JSONDecodeError as exc:
-        raise ImproperlyConfigured(
-            f"{path} is not valid JSON. Rebuild the frontend."
-        ) from exc
+        raise ImproperlyConfigured(f"{path} is not valid JSON. Rebuild the frontend.") from exc
 
 
 @register.simple_tag
@@ -54,4 +52,7 @@ def vite_asset(entry=ENTRY):
             static("crm/dist/" + record["file"]),
         )
     )
-    return mark_safe("\n    ".join(tags))
+    # Each fragment was produced by format_html, so interpolated values are
+    # already escaped; joining drops their SafeString type, which is why the
+    # result is marked safe again.
+    return mark_safe("\n    ".join(tags))  # nosec

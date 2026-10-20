@@ -3,5 +3,19 @@ __pycache__/
 *.pyc
 db.sqlite3
 
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+
+# Test, coverage and linting artifacts
+.coverage
+coverage.xml
+htmlcov/
+.ruff_cache/
+
+# collectstatic output
+staticfiles/
+
 # Vite build output served by Django
 crm/static/crm/dist/

@@ -1,0 +1,31 @@
+# Local development services for Jellybean CRM.
+#
+#   docker compose up -d          # start PostgreSQL
+#   docker compose down           # stop it (data survives in the pgdata volume)
+#   docker compose down -v        # stop it and delete the data
+#
+# `docker compose` reads .env automatically. The POSTGRES_* values only apply on
+# the volume's first start, so keep them in agreement with DATABASE_URL — that
+# string is what Django actually connects with.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: messycrm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-messycrm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-messycrm}
+    ports:
+      # Loopback only: the database is for this machine, not the network.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-messycrm} -d ${POSTGRES_DB:-messycrm}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

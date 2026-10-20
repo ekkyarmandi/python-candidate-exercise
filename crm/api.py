@@ -59,9 +59,7 @@ def contact_detail_to_dict(contact):
     """Serialize a contact with its 20 most recent activities."""
     return {
         "contact": contact_to_dict(contact),
-        "activities": [
-            activity_to_dict(activity) for activity in contact.activities.all()[:20]
-        ],
+        "activities": [activity_to_dict(activity) for activity in contact.activities.all()[:20]],
     }
 
 
@@ -77,7 +75,7 @@ def find_contact(contact_id):
     """Resolve a URL id to a contact, returning None for bad or missing ids."""
     try:
         pk = int(contact_id)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return Contact.objects.filter(pk=pk).first()
 
@@ -111,7 +109,7 @@ def parse_json_body(request):
     """Return the decoded JSON object, or None when the body is unusable."""
     try:
         data = json.loads(request.body or b"{}")
-    except (ValueError, UnicodeDecodeError):
+    except ValueError, UnicodeDecodeError:
         return None
     return data if isinstance(data, dict) else None
 

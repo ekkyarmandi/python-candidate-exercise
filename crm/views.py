@@ -62,14 +62,31 @@ def crm_screen(request):
         ]
 
     summary = get_dashboard_summary()
-    return render(request, "crm/dashboard.html", {"contacts_json": rows, "detail_json": detail, "status_choices": Contact.STATUS_CHOICES, "q": q, "status": status, "error": error, "total": summary["total"], "pipeline": float(summary["pipeline"] or 0), "status_counts": summary["status_counts"]})
+    return render(
+        request,
+        "crm/dashboard.html",
+        {
+            "contacts_json": rows,
+            "detail_json": detail,
+            "status_choices": Contact.STATUS_CHOICES,
+            "q": q,
+            "status": status,
+            "error": error,
+            "total": summary["total"],
+            "pipeline": float(summary["pipeline"] or 0),
+            "status_counts": summary["status_counts"],
+        },
+    )
 
 
 def _return_url(q, status, contact_id):
     params = {}
-    if q: params["q"] = q
-    if status: params["status"] = status
-    if contact_id: params["contact"] = str(contact_id)
+    if q:
+        params["q"] = q
+    if status:
+        params["status"] = status
+    if contact_id:
+        params["contact"] = str(contact_id)
     query = urlencode(params)
     return reverse("crm") + (("?" + query) if query else "")
 

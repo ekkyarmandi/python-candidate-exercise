@@ -4,7 +4,7 @@ This is a small, working Django CRM screen. It is intentionally messy and resemb
 
 ## Run it
 
-You need Python 3.10 or newer with `pip` and `venv`, plus Node.js 22+ for the frontend build. The app uses a local SQLite database; no separate database server is needed.
+You need Python 3.14 (the version in `pyproject.toml`) with `pip` and `venv`, plus Node.js 22+ for the frontend build. The default database is SQLite; `compose.yml` provides PostgreSQL 16 when you want parity with CI.
 
 From this directory, create and activate a virtual environment:
 
@@ -15,15 +15,23 @@ source .venv/bin/activate
 
 On Windows PowerShell, activate it with `.venv\Scripts\Activate.ps1` instead. If your system uses `python3`, use that for the first command.
 
-Then install the dependencies, prepare the database, and start Jellybean CRM:
+Then install the dependencies, start the database, create your local
+configuration, prepare the schema, and start Jellybean CRM:
 
 ```bash
 python -m pip install -r requirements.txt
+docker compose up -d     # PostgreSQL 16; skip if DATABASE_URL points at SQLite
+cp .env.example .env     # then fill in DJANGO_SECRET_KEY and the DB_* values
 cd frontend && npm ci && npm run build && cd ..
 python manage.py migrate
 python manage.py seed_crm
 python manage.py runserver
 ```
+
+The project also ships `pyproject.toml` and `uv.lock`; `uv sync` is an equivalent,
+faster way to install the same dependencies, and it also installs the quality
+tooling (`ruff`, `coverage`, `bandit`, `pip-audit`) that `scripts/ci.sh` needs.
+Production installs skip that group with `uv sync --no-dev --locked`.
 
 The `npm run build` step is required: Django serves the compiled bundle from
 `crm/static/crm/dist/`, which is generated and not committed. Skip it and the page
@@ -31,16 +39,101 @@ shows "Failed to load the CRM client. Check your connection and reload."
 
 Open http://127.0.0.1:8000/. Five sample contacts will be ready to explore; no login is required. You can rerun `seed_crm` without duplicating the sample contacts. Keep the server running in your terminal and stop it with Ctrl+C.
 
-For later sessions, activate `.venv` and run `python manage.py runserver` again. If port 8000 is busy, use `python manage.py runserver 8001` and open http://127.0.0.1:8001/.
+## Configuration
 
-Verify the setup with:
+Settings are read from the environment, with `.env` (git-ignored) as the local
+default. Real environment variables always take precedence over `.env`, so CI and
+production never need the file. `.env.example` documents every supported variable.
+
+### Settings modules
+
+`messycrm/settings/` contains one module per environment, chosen with
+`DJANGO_SETTINGS_MODULE`:
+
+| Module | Selected by | Behaviour |
+|---|---|---|
+| `messycrm.settings.local` | `manage.py` default | Reads `.env`; SQLite unless `DATABASE_URL` points at PostgreSQL |
+| `messycrm.settings.test` | `scripts/ci.sh` | Fixed key, `DEBUG` off, no `.env` necessary; `DATABASE_URL` may default to SQLite for a quick local run |
+| `messycrm.settings.prod` | `wsgi.py` default | `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS` and `DATABASE_URL` are mandatory; HTTPS and cookie hardening on |
+
+`messycrm/settings/base.py` holds everything the three share; only the values
+that genuinely differ between environments live in the modules above.
+
+### Environment variables
+
+| Variable | Required | Default |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | yes | — |
+| `DJANGO_DEBUG` | no | `False` |
+| `DJANGO_ALLOWED_HOSTS` | no | `localhost,127.0.0.1` |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | no | `http://localhost:5173,http://127.0.0.1:5173` |
+| `DATABASE_URL` | no | `sqlite:///<project>/db.sqlite3` |
+| `DB_CONN_MAX_AGE` | no | `0` |
+
+Generate a key for your local `.env` with:
 
 ```bash
-python manage.py check
-python manage.py test
+python -c "from django.core.management.utils import get_random_secret_key as k; print(k())"
 ```
 
-This setup is for local interview use. Local data lives in the ignored `db.sqlite3` file, and the tests use a separate test database.
+The defaults are the safe ones (`DEBUG` off, no wildcard `ALLOWED_HOSTS`), so set
+`DJANGO_DEBUG=True` in `.env` for local development — Django only serves the
+compiled frontend assets when `DEBUG` is on.
+
+The database is a single `DATABASE_URL` string parsed by `dj-database-url`. The
+local setup uses PostgreSQL through `docker compose up -d` (see below), and the
+`.env` values drive both sides:
+
+```
+DATABASE_URL=postgres://messycrm:secret@localhost:5432/messycrm
+```
+
+Omit `DATABASE_URL` entirely to fall back to SQLite. `postgres://`,
+`postgresql://` and `sqlite:///relative/path.db` all work; URL-encode the password
+if it contains `@ : / ? # %`.
+
+## Database
+
+PostgreSQL 16 runs in Docker and is defined in `compose.yml`:
+
+```bash
+docker compose up -d      # start it (first run creates the messycrm database)
+docker compose ps         # check it is healthy
+docker compose logs db    # if a connection fails
+docker compose down       # stop, keeping data in the pgdata volume
+docker compose down -v    # stop and delete the data
+```
+
+The container creates the `messycrm` database and a `messycrm` role from the
+`POSTGRES_*` values in `.env`, so Django and the container never disagree about
+credentials. To inspect it:
+
+```bash
+docker exec -it messycrm-db psql -U messycrm -d messycrm
+```
+
+`docker` needs group membership: `sudo usermod -aG docker $USER`, then log out and
+back in (or use `sg docker -c "<command>"` in the current shell).
+
+To go back to a file-based database, remove `DATABASE_URL` from `.env` (or set
+it to `sqlite:///db.sqlite3`) and stop the container; nothing else changes.
+
+For later sessions, activate `.venv` and run `python manage.py runserver` again. If port 8000 is busy, use `python manage.py runserver 8001` and open http://127.0.0.1:8001/.
+
+Verify the setup with the same script CI runs:
+
+```bash
+./scripts/ci.sh
+```
+
+For just the suite, use the test settings (no `.env` needed):
+
+```bash
+DJANGO_SETTINGS_MODULE=messycrm.settings.test python manage.py test
+```
+
+This setup is for local interview use. Local data lives in the database
+`DATABASE_URL` points at, and the tests use a separate test database.
 
 ### Frontend
 
@@ -101,6 +194,44 @@ frontend/src/
     format.ts            Intl money/date formatters
   index.css              focus, responsive, and reduced-motion styles
 ```
+
+## Continuous integration
+
+`scripts/ci.sh` is the single entrypoint. CI calls it and nothing else, so the
+merge gate cannot drift from what a developer can run locally:
+
+```bash
+./scripts/ci.sh          # everything, against PostgreSQL from the environment or .env
+AUDIT=1 ./scripts/ci.sh  # also audit dependencies (needs network)
+```
+
+It requires `uv`, Node.js 22+, and a reachable PostgreSQL. `DATABASE_URL` must
+resolve to a `postgres://` URL (in the environment or `.env`); a SQLite fallback
+is refused, because a SQLite pass hides the query, ordering and cast differences
+that only appear on the engine production uses. Start the database with
+`docker compose up -d`; `DB_WAIT_SECONDS` (default 60) controls how long the
+script waits for it to accept connections. Django creates and drops its own test
+database, so the configured one is never touched.
+
+In order, it runs:
+
+| Step | Command | Fails when |
+|---|---|---|
+| Dependencies | `uv sync --locked` | `uv.lock` is out of date with `pyproject.toml` |
+| Database | resolves settings, waits for connections | the effective engine is not PostgreSQL, or the server never answers |
+| Lint and format | `ruff check .`, `ruff format --check .` | style or import problems |
+| System checks | `manage.py check` | the project is misconfigured |
+| Deployment checks | `manage.py check --deploy --fail-level WARNING` with prod settings | a security setting regresses, e.g. `DEBUG` or insecure cookies |
+| Migrations | `manage.py makemigrations --check --dry-run` | a model change was committed without its migration |
+| Frontend | `npm ci`, `oxlint`, `tsc -b && vite build` | the bundle does not build; the suite renders the real template, so the build comes first |
+| Tests | `coverage run manage.py test`, `coverage report` | a test fails, or coverage drops below `fail_under` in `pyproject.toml` |
+| Static security | `bandit -r crm messycrm` | a new medium or high finding |
+
+The checks are deterministic because the dependency set is locked, migrations
+must be committed, the test settings module needs no ambient secrets, and the
+same commands run locally and in CI. `pip-audit` is opt-in: its findings change
+without the code changing, so it belongs on a schedule rather than on every pull
+request.
 
 ## OpenSpec
 

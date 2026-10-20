@@ -1,7 +1,13 @@
 from django.db import models
 
+
 class Contact(models.Model):
-    STATUS_CHOICES = [("lead", "Lead"), ("qualified", "Qualified"), ("customer", "Customer"), ("inactive", "Inactive")]
+    STATUS_CHOICES = [
+        ("lead", "Lead"),
+        ("qualified", "Qualified"),
+        ("customer", "Customer"),
+        ("inactive", "Inactive"),
+    ]
     name = models.CharField(max_length=200)
     email = models.EmailField(blank=True)
     company = models.CharField(max_length=200, blank=True)
@@ -14,6 +20,7 @@ class Contact(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class Activity(models.Model):
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name="activities")

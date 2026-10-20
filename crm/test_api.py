@@ -36,7 +36,12 @@ class ContactListApiTests(TestCase):
         self.assertEqual(body["summary"]["pipeline"], 350.0)
         self.assertEqual(
             body["status_choices"],
-            [["lead", "Lead"], ["qualified", "Qualified"], ["customer", "Customer"], ["inactive", "Inactive"]],
+            [
+                ["lead", "Lead"],
+                ["qualified", "Qualified"],
+                ["customer", "Customer"],
+                ["inactive", "Inactive"],
+            ],
         )
         self.assertEqual(
             set(body["contacts"][0]),
@@ -93,16 +98,12 @@ class ContactDetailApiTests(TestCase):
     def test_detail_caps_activities_at_twenty_newest_first(self):
         for index in range(25):
             Activity.objects.create(contact=self.contact, body=f"note {index}")
-        _, body = get_json(
-            self.client, reverse("api_contact_detail", args=[self.contact.id])
-        )
+        _, body = get_json(self.client, reverse("api_contact_detail", args=[self.contact.id]))
         self.assertEqual(len(body["activities"]), 20)
         self.assertEqual(body["activities"][0]["body"], "note 24")
 
     def test_missing_contact_is_json_404(self):
-        response = self.client.get(
-            reverse("api_contact_detail", args=[self.contact.id + 999])
-        )
+        response = self.client.get(reverse("api_contact_detail", args=[self.contact.id + 999]))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(json.loads(response.content)["error"], "Contact not found")
 
@@ -166,17 +167,13 @@ class ContactDeleteApiTests(TestCase):
         Activity.objects.create(contact=self.contact, body="note")
 
     def test_delete_removes_contact_and_activities(self):
-        response = self.client.delete(
-            reverse("api_contact_detail", args=[self.contact.id])
-        )
+        response = self.client.delete(reverse("api_contact_detail", args=[self.contact.id]))
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Contact.objects.filter(pk=self.contact.id).exists())
         self.assertFalse(Activity.objects.filter(contact_id=self.contact.id).exists())
 
     def test_delete_missing_contact_is_json_404(self):
-        response = self.client.delete(
-            reverse("api_contact_detail", args=[self.contact.id + 999])
-        )
+        response = self.client.delete(reverse("api_contact_detail", args=[self.contact.id + 999]))
         self.assertEqual(response.status_code, 404)
         self.assertIn("error", json.loads(response.content))
 
@@ -266,9 +263,7 @@ class ApiCsrfTests(TestCase):
         self.payload = json.dumps({"name": "Csrf Co"})
 
     def test_missing_token_is_json_403_and_does_not_mutate(self):
-        response = self.client.post(
-            self.url, data=self.payload, content_type="application/json"
-        )
+        response = self.client.post(self.url, data=self.payload, content_type="application/json")
         self.assertEqual(response.status_code, 403)
         self.assertIn("error", json.loads(response.content))
         self.assertFalse(Contact.objects.exists())

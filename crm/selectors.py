@@ -30,7 +30,7 @@ def get_selected_contact(selected_id, contacts):
     if selected_id:
         try:
             selected = Contact.objects.prefetch_related("activities").get(pk=selected_id)
-        except (Contact.DoesNotExist, ValueError):
+        except Contact.DoesNotExist, ValueError:
             selected = None
     if selected is None:
         selected = contacts.first()
@@ -44,9 +44,7 @@ def get_dashboard_summary():
         row["status"]: row["count"]
         for row in Contact.objects.values("status").annotate(count=Count("id"))
     }
-    status_counts = {
-        key: counts_by_status.get(key, 0) for key, label in Contact.STATUS_CHOICES
-    }
+    status_counts = {key: counts_by_status.get(key, 0) for key, label in Contact.STATUS_CHOICES}
     return {
         "total": totals["total"] or 0,
         "pipeline": totals["pipeline"] or 0,

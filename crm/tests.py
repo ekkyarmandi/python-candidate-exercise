@@ -46,9 +46,7 @@ class CrmScreenTests(TestCase):
         )
         self.contact.refresh_from_db()
         self.assertEqual(self.contact.status, "qualified")
-        self.assertTrue(
-            Activity.objects.filter(contact=self.contact, kind="status").exists()
-        )
+        self.assertTrue(Activity.objects.filter(contact=self.contact, kind="status").exists())
 
     def test_change_status_writes_body(self):
         self.client.post(
@@ -164,7 +162,5 @@ class ExportContactsTests(TestCase):
         r = self.client.get(reverse("export_contacts"))
         self.assertEqual(r.status_code, 200)
         rows = list(csv.reader(io.StringIO(r.content.decode())))
-        self.assertEqual(
-            rows[0], ["Name", "Email", "Company", "Phone", "Status", "Owner", "Value"]
-        )
+        self.assertEqual(rows[0], ["Name", "Email", "Company", "Phone", "Status", "Owner", "Value"])
         self.assertEqual(len(rows) - 1, Contact.objects.count())
