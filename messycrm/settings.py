@@ -1,10 +1,16 @@
 import os
 from pathlib import Path
 
+import dj_database_url
+from decouple import Csv, config
+
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = "interview-exercise-only"
-DEBUG = False
-ALLOWED_HOSTS = ["*"]
+
+# Environment first (Docker/CI), then `.env`, then the local development default.
+SECRET_KEY = config("DJANGO_SECRET_KEY", default="interview-exercise-only")
+DEBUG = config("DJANGO_DEBUG", default=False, cast=bool)
+ALLOWED_HOSTS = config("DJANGO_ALLOWED_HOSTS", default="*", cast=Csv())
+CSRF_TRUSTED_ORIGINS = config("DJANGO_CSRF_TRUSTED_ORIGINS", default="", cast=Csv())
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -18,6 +24,8 @@ INSTALLED_APPS = [
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Serves collectstatic output in production (DEBUG=False); no-op in dev.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -42,8 +50,14 @@ TEMPLATES = [
     }
 ]
 WSGI_APPLICATION = "messycrm.wsgi.application"
+# `DATABASE_URL` is read from the environment only (Docker Compose sets it),
+# so local runs and tests keep using SQLite unless it is exported explicitly.
 DATABASES = {
-    "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}
+    "default": dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=60,
+        conn_health_checks=True,
+    )
 }
 AUTH_PASSWORD_VALIDATORS = []
 LANGUAGE_CODE = "en-us"
@@ -82,5 +96,10 @@ INERTIA_VERSION = (
     or (str(int(VITE_MANIFEST.stat().st_mtime)) if VITE_MANIFEST.exists() else "dev")
 )
 
-# `collectstatic` target for deployment; local dev serves from STATICFILES_DIRS.
+# `collectstatic` target for deployment; WhiteNoise serves it in production while
+# `DEBUG=False`, and staticfiles/nginx serves it in front of the app otherwise.
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Vite filenames are content-hashed (`app--_S4osaR.js`), so they are immutable.
+WHITENOISE_MAX_AGE = 60 * 60 * 24 * 365
+WHITENOISE_IMMUTABLE_FILE_TEST = r"/assets/.*-[A-Za-z0-9_-]{8}\."
