@@ -1,7 +1,7 @@
 import { useForm } from '@inertiajs/react'
 import type { FormEvent } from 'react'
 
-import type { DashboardFilters } from '../types'
+import type { DashboardFilters } from '@/types'
 
 interface NoteFormProps {
   contactId: number

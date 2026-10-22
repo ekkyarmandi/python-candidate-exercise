@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@inertiajs/react', async () => await import('../mocks/inertia'))
 
-import Dashboard from '../../src/pages/crm/Dashboard'
+import Dashboard from '@/pages/crm/Dashboard'
 import { dashboardProps } from '../fixtures'
 import { makeForm, useForm, usePage } from '../mocks/inertia'
 

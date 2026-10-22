@@ -1,7 +1,7 @@
 import { useForm } from '@inertiajs/react'
 import { useEffect, type FormEvent } from 'react'
 
-import type { ContactStatus, DashboardFilters, StatusChoice } from '../types'
+import type { ContactStatus, DashboardFilters, StatusChoice } from '@/types'
 
 interface StatusFormProps {
   contactId: number

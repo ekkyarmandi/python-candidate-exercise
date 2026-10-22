@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@inertiajs/react', async () => await import('../mocks/inertia'))
 
-import NewContactForm from '../../src/components/NewContactForm'
-import NoteForm from '../../src/components/NoteForm'
-import StatusForm from '../../src/components/StatusForm'
+import NewContactForm from '@/components/NewContactForm'
+import NoteForm from '@/components/NoteForm'
+import StatusForm from '@/components/StatusForm'
 import { filters, statusChoices } from '../fixtures'
 import { makeForm, useForm } from '../mocks/inertia'
 
