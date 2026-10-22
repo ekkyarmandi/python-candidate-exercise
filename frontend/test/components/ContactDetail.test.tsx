@@ -5,12 +5,9 @@ vi.mock('@inertiajs/react', async () => await import('../mocks/inertia'))
 
 import ContactDetail from '@/components/ContactDetail'
 import { contactDetail, filters, statusChoices } from '../fixtures'
-import { makeForm, useForm } from '../mocks/inertia'
-
 describe('ContactDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useForm.mockReturnValue(makeForm({ data: { new_status: 'lead', note: '' } }))
   })
 
   it('renders the selected contact, its actions and activity history', () => {

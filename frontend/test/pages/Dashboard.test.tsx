@@ -5,13 +5,12 @@ vi.mock('@inertiajs/react', async () => await import('../mocks/inertia'))
 
 import Dashboard from '@/pages/crm/Dashboard'
 import { dashboardProps } from '../fixtures'
-import { makeForm, useForm, usePage } from '../mocks/inertia'
+import { usePage } from '../mocks/inertia'
 
 describe('Dashboard page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     usePage.mockReturnValue({ props: { errors: {} } })
-    useForm.mockReturnValue(makeForm({ data: { new_status: 'lead', note: '' } }))
   })
 
   it('renders the screen from page props', () => {

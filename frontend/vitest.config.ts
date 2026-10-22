@@ -13,5 +13,10 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./test/setup.ts"],
     include: ["test/**/*.test.{ts,tsx}"],
+    server: {
+      deps: {
+        inline: ["@inertiajs/react", "@inertiajs/core"],
+      },
+    },
   },
 });
