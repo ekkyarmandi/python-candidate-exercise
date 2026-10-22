@@ -3,7 +3,11 @@ __pycache__/
 *.pyc
 db.sqlite3
 
-# Vite build output served by Django
-crm/static/crm/dist/
+# Frontend build output (mounted via STATICFILES_DIRS; .gitkeep keeps the dir)
+frontend/dist/*
+!frontend/dist/.gitkeep
+
+# Frontend dependencies (bun)
+node_modules/
 .pi/APPEND_SYSTEM.md
 .env

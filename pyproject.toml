@@ -1,0 +1,15 @@
+[project]
+name = "messy-crm"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Ekky Armandi", email = "ekky@softwareseni.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "django>=4.2,<6.0",
+    "django-vite>=3.2.0",
+    "inertia-django>=2.0.0",
+    "python-decouple>=3.8",
+]
