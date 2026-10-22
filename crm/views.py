@@ -1,131 +1,79 @@
 import csv
-from urllib.parse import urlencode
+import json
 
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.views.decorators.http import require_http_methods, require_POST
+from inertia import render as inertia_render
 
 from .forms import ContactCreateForm, NoteForm, StatusChangeForm
+from .middleware import flash_errors
 from .models import Contact
-from .selectors import get_contacts, get_dashboard_summary, get_selected_contact
+from .pages import dashboard_props, return_url
 from .services import add_note, change_status, create_contact, delete_contact
 
 
 def crm_screen(request):
-    q = request.GET.get("q", "").strip()
-    status = request.GET.get("status", "").strip()
-    selected_id = request.GET.get("contact", "").strip()
-    error = ""
+    """Render the CRM dashboard as an Inertia page."""
+    return inertia_render(request, "crm/Dashboard", dashboard_props(request))
 
-    if request.method == "POST":
-        action = request.POST.get("action", "")
-        q = request.POST.get("return_q", "").strip()
-        status = request.POST.get("return_status", "").strip()
-        selected_id = request.POST.get("contact_id", "").strip()
-        if action == "add_contact":
-            form = ContactCreateForm(request.POST)
-            if form.is_valid():
-                contact = create_contact(
-                    name=form.cleaned_data["name"],
-                    email=form.cleaned_data["email"],
-                    company=form.cleaned_data["company"],
-                    owner=form.cleaned_data["owner"],
-                    phone=form.cleaned_data["phone"],
-                    value=form.cleaned_data["value"],
-                    status=form.cleaned_data["new_status"],
-                )
-                return redirect(_return_url(q, status, contact.id))
-            error = form.errors.get("name", ["Name is required"])[0]
-        elif action == "change_status":
-            contact = get_object_or_404(Contact, pk=request.POST.get("contact_id"))
-            form = StatusChangeForm(request.POST)
-            if form.is_valid():
-                change_status(
-                    contact=contact, new_status=form.cleaned_data["new_status"]
-                )
-            return redirect(_return_url(q, status, contact.id))
-        elif action == "add_note":
-            contact = get_object_or_404(Contact, pk=request.POST.get("contact_id"))
-            form = NoteForm(request.POST)
-            if form.is_valid():
-                add_note(contact=contact, body=form.cleaned_data["note"])
-            return redirect(_return_url(q, status, contact.id))
-        elif action == "delete_contact":
-            contact = get_object_or_404(Contact, pk=request.POST.get("contact_id"))
-            delete_contact(contact=contact)
-            return redirect(_return_url(q, status, ""))
 
-    contacts = get_contacts(q, status)
-    selected = get_selected_contact(selected_id, contacts)
+@require_POST
+def create_contact_view(request):
+    data = _payload(request)
+    q, status = _filters(request, data)
 
-    rows = []
-    for c in contacts:
-        rows.append(
-            {
-                "id": c.id,
-                "name": c.name,
-                "email": c.email,
-                "company": c.company,
-                "phone": c.phone,
-                "status": c.status,
-                "status_label": c.get_status_display(),
-                "owner": c.owner,
-                "value": float(c.value),
-                "selected": bool(selected and selected.id == c.id),
-                "url": _return_url(q, status, c.id),
-            }
-        )
+    form = ContactCreateForm(data)
+    if not form.is_valid():
+        flash_errors(request, _first_errors(form))
+        return redirect(return_url(q, status))
 
-    detail = None
-    if selected:
-        detail = {
-            "id": selected.id,
-            "name": selected.name,
-            "email": selected.email,
-            "company": selected.company,
-            "phone": selected.phone,
-            "status": selected.status,
-            "owner": selected.owner,
-            "value": float(selected.value),
-            "activities": [
-                {
-                    "kind": a.kind,
-                    "body": a.body,
-                    "created_by": a.created_by,
-                    "created_at": a.created_at.strftime("%d %b %Y %H:%M"),
-                }
-                for a in selected.activities.all()[:20]
-            ],
-        }
-
-    summary = get_dashboard_summary()
-    return render(
-        request,
-        "crm/dashboard.html",
-        {
-            "contacts_json": rows,
-            "detail_json": detail,
-            "status_choices": Contact.STATUS_CHOICES,
-            "q": q,
-            "status": status,
-            "error": error,
-            "total": summary["total"],
-            "pipeline": float(summary["pipeline"] or 0),
-            "status_counts": summary["status_counts"],
-        },
+    contact = create_contact(
+        name=form.cleaned_data["name"],
+        email=form.cleaned_data["email"],
+        company=form.cleaned_data["company"],
+        owner=form.cleaned_data["owner"],
+        phone=form.cleaned_data["phone"],
+        value=form.cleaned_data["value"],
+        status=form.cleaned_data["new_status"],
     )
+    return redirect(return_url(q, status, contact.id))
 
 
-def _return_url(q, status, contact_id):
-    params = {}
-    if q:
-        params["q"] = q
-    if status:
-        params["status"] = status
-    if contact_id:
-        params["contact"] = str(contact_id)
-    query = urlencode(params)
-    return reverse("crm") + (("?" + query) if query else "")
+@require_http_methods(["PATCH"])
+def update_contact_status(request, pk):
+    contact = get_object_or_404(Contact, pk=pk)
+    data = _payload(request)
+    q, status = _filters(request, data)
+
+    form = StatusChangeForm(data)
+    if not form.is_valid():
+        flash_errors(request, _first_errors(form))
+        return redirect(return_url(q, status, contact.id))
+
+    change_status(contact=contact, new_status=form.cleaned_data["new_status"])
+    return redirect(return_url(q, status, contact.id))
+
+
+@require_POST
+def add_contact_note(request, pk):
+    contact = get_object_or_404(Contact, pk=pk)
+    data = _payload(request)
+    q, status = _filters(request, data)
+
+    form = NoteForm(data)
+    if form.is_valid():
+        add_note(contact=contact, body=form.cleaned_data["note"])
+    return redirect(return_url(q, status, contact.id))
+
+
+@require_http_methods(["DELETE"])
+def delete_contact_view(request, pk):
+    contact = get_object_or_404(Contact, pk=pk)
+    q, status = _filters(request, _payload(request))
+
+    delete_contact(contact=contact)
+    return redirect(return_url(q, status))
 
 
 def export_contacts(request):
@@ -134,7 +82,31 @@ def export_contacts(request):
     writer = csv.writer(response)
     writer.writerow(["Name", "Email", "Company", "Phone", "Status", "Owner", "Value"])
     for c in Contact.objects.all().order_by("name"):
-        writer.writerow(
-            [c.name, c.email, c.company, c.phone, c.status, c.owner, c.value]
-        )
+        writer.writerow([c.name, c.email, c.company, c.phone, c.status, c.owner, c.value])
     return response
+
+
+def _payload(request: HttpRequest) -> dict:
+    """Return the request body as a mapping for JSON (Inertia) or form posts."""
+    if request.content_type == "application/json":
+        try:
+            payload = json.loads(request.body or b"{}")
+        except ValueError:
+            return {}
+        return payload if isinstance(payload, dict) else {}
+    return request.POST
+
+
+def _filters(request: HttpRequest, data) -> tuple[str, str]:
+    """Filters travel in the payload or the query string, whichever is present."""
+    q = (data.get("q") or request.GET.get("q") or "").strip()
+    status = (data.get("status") or request.GET.get("status") or "").strip()
+    return q, status
+
+
+def _first_errors(form) -> dict[str, str]:
+    """Flatten a Django form's errors to one message per field."""
+    return {
+        field: entries[0]["message"]
+        for field, entries in form.errors.get_json_data().items()
+    }

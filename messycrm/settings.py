@@ -1,8 +1,9 @@
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "interview-exercise-only"
-DEBUG = True
+DEBUG = False
 ALLOWED_HOSTS = ["*"]
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -23,6 +24,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "inertia.middleware.InertiaMiddleware",
+    "crm.middleware.ShareInertiaErrorsMiddleware",
 ]
 ROOT_URLCONF = "messycrm.urls"
 TEMPLATES = [
@@ -58,6 +60,8 @@ FRONTEND_DIST = BASE_DIR / "frontend" / "dist"
 VITE_MANIFEST = FRONTEND_DIST / ".vite" / "manifest.json"
 STATICFILES_DIRS = [("crm", FRONTEND_DIST)]
 
+
+
 DJANGO_VITE = {
     "default": {
         "dev_mode": DEBUG,
@@ -71,6 +75,12 @@ INERTIA_LAYOUT = "crm/app.html"
 INERTIA_SSR_ENABLED = False
 # Busts stale Inertia pages whenever a new bundle is built; "dev" before the
 # first `bun run build`.
+# `INERTIA_VERSION` must be identical across instances of a deployment, mtime is
+# only a local fallback: set it from the release id (e.g. the commit SHA) in prod.
 INERTIA_VERSION = (
-    str(int(VITE_MANIFEST.stat().st_mtime)) if VITE_MANIFEST.exists() else "dev"
+    os.environ.get("INERTIA_VERSION")
+    or (str(int(VITE_MANIFEST.stat().st_mtime)) if VITE_MANIFEST.exists() else "dev")
 )
+
+# `collectstatic` target for deployment; local dev serves from STATICFILES_DIRS.
+STATIC_ROOT = BASE_DIR / "staticfiles"

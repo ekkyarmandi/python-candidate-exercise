@@ -34,7 +34,6 @@ class DashboardPropsTests(TestCase):
             props["summary"]["statusCounts"],
             {"lead": 0, "qualified": 0, "customer": 0, "inactive": 0},
         )
-        self.assertEqual(props["errors"], {})
 
     def test_contact_rows_expose_client_fields(self):
         contact = self.make_contact(
@@ -150,8 +149,6 @@ class DashboardPropsTests(TestCase):
         self.assertEqual(parse_qs(parsed.query)["status"], ["lead"])
         self.assertEqual(parse_qs(parsed.query)["contact"], [str(contact.id)])
 
-    def test_errors_are_passed_through(self):
-        props = dashboard_props(
-            self.factory.get("/"), errors={"name": "Name is required"}
-        )
-        self.assertEqual(props["errors"], {"name": "Name is required"})
+    def test_page_props_do_not_carry_errors(self):
+        """Errors are a shared prop from the middleware, never a page prop."""
+        self.assertNotIn("errors", self.props())

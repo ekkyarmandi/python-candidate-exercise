@@ -9,5 +9,8 @@ frontend/dist/*
 
 # Frontend dependencies (bun)
 node_modules/
+
+# collectstatic output
+staticfiles/
 .pi/APPEND_SYSTEM.md
 .env

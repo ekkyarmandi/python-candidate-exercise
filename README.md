@@ -4,38 +4,94 @@ This is a small, working Django CRM screen. It is intentionally messy and resemb
 
 ## Run it
 
-You need Python 3.10 or newer with `pip` and `venv`. The app uses a local SQLite database; no separate database server or frontend build is needed.
+Requirements: Python 3.14+, [uv](https://docs.astral.sh/uv/), and
+[bun](https://bun.sh/). The app uses a local SQLite database; no database
+server is needed.
 
-From this directory, create and activate a virtual environment:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-```
-
-On Windows PowerShell, activate it with `.venv\Scripts\Activate.ps1` instead. If your system uses `python3`, use that for the first command.
-
-Then install the dependencies, prepare the database, and start Jellybean CRM:
+Prepare the backend once:
 
 ```bash
-python -m pip install -r requirements.txt
-python manage.py migrate
-python manage.py seed_crm
-python manage.py runserver
+uv sync
+uv run python manage.py migrate
+uv run python manage.py seed_crm
 ```
 
-Open http://127.0.0.1:8000/. Five sample contacts will be ready to explore; no login is required. You can rerun `seed_crm` without duplicating the sample contacts. Keep the server running in your terminal and stop it with Ctrl+C.
-
-For later sessions, activate `.venv` and run `python manage.py runserver` again. If port 8000 is busy, use `python manage.py runserver 8001` and open http://127.0.0.1:8001/.
-
-Verify the setup with:
+Install the frontend dependencies once (and after `package.json` changes):
 
 ```bash
-python manage.py check
-python manage.py test
+cd frontend && bun install && cd ..
 ```
 
-This setup is for local interview use. Local data lives in the ignored `db.sqlite3` file, and the tests use a separate test database.
+### Development (hot reload)
+
+The page is served by Django and rendered by the React client, so run two
+processes side by side:
+
+```bash
+# terminal 1 — Vite dev server with HMR (http://localhost:5173)
+cd frontend && bun run dev
+
+# terminal 2 — Django (http://127.0.0.1:8000)
+uv run python manage.py runserver
+```
+
+Open http://127.0.0.1:8000/, not port 5173: Django owns routing, props and
+CSRF, while Vite only serves the JS/CSS modules. Editing a `.tsx` file updates
+the browser without a reload; editing Django code reloads the server.
+
+### Built assets (no HMR, production-style)
+
+`django-vite` runs in dev mode while `DEBUG = True`, so switching to built
+assets is just a matter of running with `DEBUG = False`. Build the bundle
+first — no Vite process is involved afterwards:
+
+```bash
+cd frontend && bun install --frozen-lockfile && bun run build && cd ..
+# set DEBUG = False in messycrm/settings.py
+uv run python manage.py runserver --insecure
+```
+
+The page now references `/static/crm/assets/app-<hash>.js` and the hashed CSS
+from `frontend/dist`. `--insecure` is only needed locally: with `DEBUG = False`
+Django's `runserver` refuses to serve static files.
+
+### Production notes
+
+There is no Node/bun runtime in production — only build artifacts:
+
+```bash
+# deploy step
+cd frontend && bun install --frozen-lockfile && bun run build && cd ..
+INERTIA_VERSION="$(git rev-parse --short HEAD)" \
+  uv run python manage.py collectstatic --noinput
+```
+
+- Run with `DEBUG = False`. `collectstatic` copies `frontend/dist` into
+  `STATIC_ROOT` (`staticfiles/`), and your web server (nginx, a CDN, or
+  WhiteNoise) serves it under `/static/`. Do not use `runserver` or
+  `--insecure` in production.
+- `INERTIA_VERSION` must be the same on every instance of a release; it is
+  read from the environment when set, and falls back to the manifest mtime
+  locally. A client with a stale version gets a 409 and does a full reload.
+- `frontend/dist/assets/*` names are content-hashed, so they can be cached
+  `immutable`; do not cache the HTML document.
+
+Five sample contacts will be ready to explore; no login is required. You can
+rerun `seed_crm` without duplicating the sample contacts. If port 8000 is busy,
+use `uv run python manage.py runserver 8001` and open
+http://127.0.0.1:8001/.
+
+### Verify
+
+```bash
+uv run python manage.py check
+uv run python manage.py test          # Django: page props, commands, queries, export
+cd frontend && bun run test           # Vitest: components and formatters
+cd frontend && bun run typecheck
+```
+
+This setup is for local interview use. Local data lives in the ignored
+`db.sqlite3` file, and the tests use a separate test database.
 
 ## OpenSpec
 
