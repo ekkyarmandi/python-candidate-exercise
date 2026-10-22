@@ -1,0 +1,1 @@
+- DO NOT access 'terminal browser' or any browser launch related command, browser test would be done by user
