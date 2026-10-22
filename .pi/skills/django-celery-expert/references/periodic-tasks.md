@@ -25,34 +25,30 @@ from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {
     # Execute every 30 seconds
-    'check-heartbeat': {
-        'task': 'myapp.tasks.check_heartbeat',
-        'schedule': 30.0,
+    "check-heartbeat": {
+        "task": "myapp.tasks.check_heartbeat",
+        "schedule": 30.0,
     },
-
     # Execute every minute
-    'process-queue': {
-        'task': 'myapp.tasks.process_queue',
-        'schedule': 60.0,
-        'args': (),
+    "process-queue": {
+        "task": "myapp.tasks.process_queue",
+        "schedule": 60.0,
+        "args": (),
     },
-
     # Execute at midnight every day
-    'daily-cleanup': {
-        'task': 'myapp.tasks.daily_cleanup',
-        'schedule': crontab(hour=0, minute=0),
+    "daily-cleanup": {
+        "task": "myapp.tasks.daily_cleanup",
+        "schedule": crontab(hour=0, minute=0),
     },
-
     # Execute Monday at 7:30am
-    'weekly-report': {
-        'task': 'myapp.tasks.send_weekly_report',
-        'schedule': crontab(hour=7, minute=30, day_of_week=1),
+    "weekly-report": {
+        "task": "myapp.tasks.send_weekly_report",
+        "schedule": crontab(hour=7, minute=30, day_of_week=1),
     },
-
     # Every hour on the hour
-    'hourly-sync': {
-        'task': 'myapp.tasks.sync_data',
-        'schedule': crontab(minute=0),
+    "hourly-sync": {
+        "task": "myapp.tasks.sync_data",
+        "schedule": crontab(minute=0),
     },
 }
 ```
@@ -65,38 +61,33 @@ from datetime import timedelta
 
 CELERY_BEAT_SCHEDULE = {
     # Timedelta - simple intervals
-    'every-10-seconds': {
-        'task': 'myapp.tasks.quick_check',
-        'schedule': timedelta(seconds=10),
+    "every-10-seconds": {
+        "task": "myapp.tasks.quick_check",
+        "schedule": timedelta(seconds=10),
     },
-
-    'every-5-minutes': {
-        'task': 'myapp.tasks.periodic_check',
-        'schedule': timedelta(minutes=5),
+    "every-5-minutes": {
+        "task": "myapp.tasks.periodic_check",
+        "schedule": timedelta(minutes=5),
     },
-
     # Crontab - cron-like schedule
-    'weekday-mornings': {
-        'task': 'myapp.tasks.morning_task',
-        'schedule': crontab(hour=8, minute=0, day_of_week='mon-fri'),
+    "weekday-mornings": {
+        "task": "myapp.tasks.morning_task",
+        "schedule": crontab(hour=8, minute=0, day_of_week="mon-fri"),
     },
-
     # First of every month
-    'monthly-report': {
-        'task': 'myapp.tasks.monthly_report',
-        'schedule': crontab(day_of_month=1, hour=0, minute=0),
+    "monthly-report": {
+        "task": "myapp.tasks.monthly_report",
+        "schedule": crontab(day_of_month=1, hour=0, minute=0),
     },
-
     # Every quarter (1st of Jan, Apr, Jul, Oct)
-    'quarterly-report': {
-        'task': 'myapp.tasks.quarterly_report',
-        'schedule': crontab(day_of_month=1, month_of_year='1,4,7,10', hour=0, minute=0),
+    "quarterly-report": {
+        "task": "myapp.tasks.quarterly_report",
+        "schedule": crontab(day_of_month=1, month_of_year="1,4,7,10", hour=0, minute=0),
     },
-
     # Solar schedule - based on sunrise/sunset
-    'at-sunrise': {
-        'task': 'myapp.tasks.sunrise_task',
-        'schedule': solar('sunrise', -37.81753, 144.96715),  # Melbourne
+    "at-sunrise": {
+        "task": "myapp.tasks.sunrise_task",
+        "schedule": solar("sunrise", -37.81753, 144.96715),  # Melbourne
     },
 }
 ```
@@ -122,17 +113,17 @@ crontab(minute=0, hour=0)
 crontab(minute=0, hour=0, day_of_week=1)
 
 # Every 15 minutes
-crontab(minute='*/15')
+crontab(minute="*/15")
 
 # Every hour between 9am-5pm on weekdays
-crontab(minute=0, hour='9-17', day_of_week='mon-fri')
+crontab(minute=0, hour="9-17", day_of_week="mon-fri")
 
 # At 12:30 on the 15th of every month
 crontab(minute=30, hour=12, day_of_month=15)
 
 # Multiple specific values
-crontab(minute=0, hour='0,12')  # Midnight and noon
-crontab(day_of_week='mon,wed,fri')  # MWF
+crontab(minute=0, hour="0,12")  # Midnight and noon
+crontab(day_of_week="mon,wed,fri")  # MWF
 ```
 
 ## Django Database Scheduler
@@ -173,9 +164,11 @@ from django.contrib import admin
 from django_celery_beat.admin import PeriodicTaskAdmin
 from django_celery_beat.models import PeriodicTask
 
+
 class CustomPeriodicTaskAdmin(PeriodicTaskAdmin):
-    list_display = ['name', 'task', 'enabled', 'last_run_at']
-    list_filter = ['enabled', 'task']
+    list_display = ["name", "task", "enabled", "last_run_at"]
+    list_filter = ["enabled", "task"]
+
 
 admin.site.unregister(PeriodicTask)
 admin.site.register(PeriodicTask, CustomPeriodicTaskAdmin)
@@ -200,28 +193,28 @@ schedule, created = IntervalSchedule.objects.get_or_create(
 # Create periodic task with interval
 PeriodicTask.objects.create(
     interval=schedule,
-    name='Sync Data Every 10 Minutes',
-    task='myapp.tasks.sync_data',
+    name="Sync Data Every 10 Minutes",
+    task="myapp.tasks.sync_data",
     args=json.dumps([]),
     kwargs=json.dumps({}),
 )
 
 # Create crontab schedule (daily at 6am)
 cron_schedule, _ = CrontabSchedule.objects.get_or_create(
-    minute='0',
-    hour='6',
-    day_of_week='*',
-    day_of_month='*',
-    month_of_year='*',
+    minute="0",
+    hour="6",
+    day_of_week="*",
+    day_of_month="*",
+    month_of_year="*",
 )
 
 # Create periodic task with crontab
 PeriodicTask.objects.create(
     crontab=cron_schedule,
-    name='Daily Report',
-    task='myapp.tasks.generate_daily_report',
-    args=json.dumps(['pdf']),
-    kwargs=json.dumps({'include_charts': True}),
+    name="Daily Report",
+    task="myapp.tasks.generate_daily_report",
+    args=json.dumps(["pdf"]),
+    kwargs=json.dumps({"include_charts": True}),
     enabled=True,
 )
 ```
@@ -232,6 +225,7 @@ PeriodicTask.objects.create(
 from django_celery_beat.models import PeriodicTask, IntervalSchedule
 import json
 
+
 def create_user_notification_schedule(user_id, interval_minutes):
     """Create a periodic task for user-specific notifications."""
     schedule, _ = IntervalSchedule.objects.get_or_create(
@@ -239,26 +233,28 @@ def create_user_notification_schedule(user_id, interval_minutes):
         period=IntervalSchedule.MINUTES,
     )
 
-    task_name = f'notify-user-{user_id}'
+    task_name = f"notify-user-{user_id}"
 
     PeriodicTask.objects.update_or_create(
         name=task_name,
         defaults={
-            'interval': schedule,
-            'task': 'notifications.tasks.send_user_digest',
-            'kwargs': json.dumps({'user_id': user_id}),
-            'enabled': True,
-        }
+            "interval": schedule,
+            "task": "notifications.tasks.send_user_digest",
+            "kwargs": json.dumps({"user_id": user_id}),
+            "enabled": True,
+        },
     )
+
 
 def disable_user_notifications(user_id):
     """Disable notifications for a user."""
-    task_name = f'notify-user-{user_id}'
+    task_name = f"notify-user-{user_id}"
     PeriodicTask.objects.filter(name=task_name).update(enabled=False)
+
 
 def delete_user_notifications(user_id):
     """Remove notification schedule for a user."""
-    task_name = f'notify-user-{user_id}'
+    task_name = f"notify-user-{user_id}"
     PeriodicTask.objects.filter(name=task_name).delete()
 ```
 
@@ -268,7 +264,7 @@ def delete_user_notifications(user_id):
 
 ```python
 # settings.py
-CELERY_TIMEZONE = 'America/New_York'
+CELERY_TIMEZONE = "America/New_York"
 CELERY_ENABLE_UTC = True  # Store in UTC, display in timezone
 
 # Or use Django's timezone
@@ -283,9 +279,9 @@ import pytz
 
 CELERY_BEAT_SCHEDULE = {
     # This runs at 9am in the configured CELERY_TIMEZONE
-    'morning-email': {
-        'task': 'myapp.tasks.send_morning_email',
-        'schedule': crontab(hour=9, minute=0),
+    "morning-email": {
+        "task": "myapp.tasks.send_morning_email",
+        "schedule": crontab(hour=9, minute=0),
     },
 }
 
@@ -293,9 +289,9 @@ CELERY_BEAT_SCHEDULE = {
 from django_celery_beat.models import CrontabSchedule
 
 schedule = CrontabSchedule.objects.create(
-    minute='0',
-    hour='9',
-    timezone=pytz.timezone('America/New_York'),
+    minute="0",
+    hour="9",
+    timezone=pytz.timezone("America/New_York"),
 )
 ```
 
@@ -305,11 +301,11 @@ schedule = CrontabSchedule.objects.create(
 
 ```python
 CELERY_BEAT_SCHEDULE = {
-    'daily-report': {
-        'task': 'myapp.tasks.generate_report',
-        'schedule': crontab(hour=6, minute=0),
-        'args': ('daily', 'pdf'),
-        'kwargs': {'include_charts': True, 'recipients': ['admin@example.com']},
+    "daily-report": {
+        "task": "myapp.tasks.generate_report",
+        "schedule": crontab(hour=6, minute=0),
+        "args": ("daily", "pdf"),
+        "kwargs": {"include_charts": True, "recipients": ["admin@example.com"]},
     },
 }
 ```
@@ -318,13 +314,13 @@ CELERY_BEAT_SCHEDULE = {
 
 ```python
 CELERY_BEAT_SCHEDULE = {
-    'priority-task': {
-        'task': 'myapp.tasks.important_task',
-        'schedule': crontab(minute='*/5'),
-        'options': {
-            'queue': 'high-priority',
-            'priority': 9,
-            'expires': 300,  # Expire if not started in 5 min
+    "priority-task": {
+        "task": "myapp.tasks.important_task",
+        "schedule": crontab(minute="*/5"),
+        "options": {
+            "queue": "high-priority",
+            "priority": 9,
+            "expires": 300,  # Expire if not started in 5 min
         },
     },
 }
@@ -339,19 +335,21 @@ from django.core.cache import cache
 from celery import shared_task
 from contextlib import contextmanager
 
+
 @contextmanager
-def beat_lock(lock_id, timeout=60*60):
+def beat_lock(lock_id, timeout=60 * 60):
     """Prevent duplicate periodic task execution."""
-    lock_acquired = cache.add(lock_id, 'locked', timeout)
+    lock_acquired = cache.add(lock_id, "locked", timeout)
     try:
         yield lock_acquired
     finally:
         if lock_acquired:
             cache.delete(lock_id)
 
+
 @shared_task
 def hourly_sync():
-    with beat_lock('hourly-sync-lock') as acquired:
+    with beat_lock("hourly-sync-lock") as acquired:
         if not acquired:
             return  # Another instance is running
 
@@ -368,7 +366,8 @@ pip install celery-once
 ```python
 from celery_once import QueueOnce
 
-@shared_task(base=QueueOnce, once={'graceful': True})
+
+@shared_task(base=QueueOnce, once={"graceful": True})
 def slow_task():
     # Only one instance runs at a time
     perform_slow_operation()
@@ -403,16 +402,16 @@ celery -A myproject beat -l info --scheduler django_celery_beat.schedulers:Datab
 ```python
 # GOOD: Offset schedules to avoid thundering herd
 CELERY_BEAT_SCHEDULE = {
-    'task-a': {'task': 'app.task_a', 'schedule': crontab(minute=0)},  # :00
-    'task-b': {'task': 'app.task_b', 'schedule': crontab(minute=5)},  # :05
-    'task-c': {'task': 'app.task_c', 'schedule': crontab(minute=10)}, # :10
+    "task-a": {"task": "app.task_a", "schedule": crontab(minute=0)},  # :00
+    "task-b": {"task": "app.task_b", "schedule": crontab(minute=5)},  # :05
+    "task-c": {"task": "app.task_c", "schedule": crontab(minute=10)},  # :10
 }
 
 # BAD: All tasks at the same time
 CELERY_BEAT_SCHEDULE = {
-    'task-a': {'task': 'app.task_a', 'schedule': crontab(minute=0)},
-    'task-b': {'task': 'app.task_b', 'schedule': crontab(minute=0)},
-    'task-c': {'task': 'app.task_c', 'schedule': crontab(minute=0)},
+    "task-a": {"task": "app.task_a", "schedule": crontab(minute=0)},
+    "task-b": {"task": "app.task_b", "schedule": crontab(minute=0)},
+    "task-c": {"task": "app.task_c", "schedule": crontab(minute=0)},
 }
 ```
 
@@ -421,18 +420,21 @@ CELERY_BEAT_SCHEDULE = {
 ```python
 @shared_task(
     soft_time_limit=3600,  # 1 hour soft limit
-    time_limit=3660,       # Hard limit slightly longer
+    time_limit=3660,  # Hard limit slightly longer
 )
 def daily_report():
     """Generate daily report - may take up to 1 hour."""
     # Set schedule to run with enough gap
     pass
 
+
 CELERY_BEAT_SCHEDULE = {
-    'daily-report': {
-        'task': 'myapp.tasks.daily_report',
-        'schedule': crontab(hour=2, minute=0),  # 2am, plenty of time before business hours
-        'options': {'expires': 3600 * 3},  # Expire if not started in 3 hours
+    "daily-report": {
+        "task": "myapp.tasks.daily_report",
+        "schedule": crontab(
+            hour=2, minute=0
+        ),  # 2am, plenty of time before business hours
+        "options": {"expires": 3600 * 3},  # Expire if not started in 3 hours
     },
 }
 ```
@@ -443,18 +445,20 @@ CELERY_BEAT_SCHEDULE = {
 @shared_task
 def beat_health_check():
     """Record that beat is running."""
-    cache.set('celery-beat-heartbeat', timezone.now(), timeout=120)
+    cache.set("celery-beat-heartbeat", timezone.now(), timeout=120)
+
 
 CELERY_BEAT_SCHEDULE = {
-    'beat-health-check': {
-        'task': 'myapp.tasks.beat_health_check',
-        'schedule': 60.0,  # Every minute
+    "beat-health-check": {
+        "task": "myapp.tasks.beat_health_check",
+        "schedule": 60.0,  # Every minute
     },
 }
 
+
 # Check beat health
 def is_beat_healthy():
-    last_heartbeat = cache.get('celery-beat-heartbeat')
+    last_heartbeat = cache.get("celery-beat-heartbeat")
     if not last_heartbeat:
         return False
     return (timezone.now() - last_heartbeat).seconds < 120
@@ -472,10 +476,11 @@ def cleanup_task_results():
     cutoff = timezone.now() - timedelta(days=7)
     TaskResult.objects.filter(date_created__lt=cutoff).delete()
 
+
 CELERY_BEAT_SCHEDULE = {
-    'cleanup-results': {
-        'task': 'myapp.tasks.cleanup_task_results',
-        'schedule': crontab(hour=3, minute=0),  # Daily at 3am
+    "cleanup-results": {
+        "task": "myapp.tasks.cleanup_task_results",
+        "schedule": crontab(hour=3, minute=0),  # Daily at 3am
     },
 }
 ```
@@ -493,6 +498,7 @@ def conditional_task():
 
     perform_task()
 
+
 def should_run_today():
     # Skip weekends
     if timezone.now().weekday() >= 5:
@@ -508,6 +514,7 @@ def should_run_today():
 ```python
 from celery import chain
 
+
 @shared_task
 def start_daily_pipeline():
     """Kick off daily processing pipeline."""
@@ -519,10 +526,11 @@ def start_daily_pipeline():
     )
     workflow.delay()
 
+
 CELERY_BEAT_SCHEDULE = {
-    'daily-pipeline': {
-        'task': 'myapp.tasks.start_daily_pipeline',
-        'schedule': crontab(hour=6, minute=0),
+    "daily-pipeline": {
+        "task": "myapp.tasks.start_daily_pipeline",
+        "schedule": crontab(hour=6, minute=0),
     },
 }
 ```

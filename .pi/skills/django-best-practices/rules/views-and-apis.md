@@ -22,17 +22,18 @@ class GenerateReportView(View):
 
 ### ✅ Right
 ```python
-# Use generic CBVs directly for CRUD 
+# Use generic CBVs directly for CRUD
 class PostListView(ListView):
- model = Post
- paginate_by = 10
- template_name = 'post_list.html'
+    model = Post
+    paginate_by = 10
+    template_name = "post_list.html"
+
 
 # Use FBVs directly for distinct, procedural customized actions
 @require_POST
 def generate_report(request):
- data = build_report_data()
- return JsonResponse(data)
+    data = build_report_data()
+    return JsonResponse(data)
 ```
 
 ### Notes
@@ -93,17 +94,17 @@ DRF ModelViewSets directly evaluate `.queryset` automatically. Returning a naive
 ### ❌ Wrong
 ```python
 class AuthorViewSet(viewsets.ModelViewSet):
- # Serializer automatically accesses author.books, triggering N+1 queries
- queryset = Author.objects.all()
- serializer_class = AuthorSerializer
+    # Serializer automatically accesses author.books, triggering N+1 queries
+    queryset = Author.objects.all()
+    serializer_class = AuthorSerializer
 ```
 
 ### ✅ Right
 ```python
 class AuthorViewSet(viewsets.ModelViewSet):
- # Optimize the queryset easily 
- queryset = Author.objects.prefetch_related('books').all()
- serializer_class = AuthorSerializer
+    # Optimize the queryset easily
+    queryset = Author.objects.prefetch_related("books").all()
+    serializer_class = AuthorSerializer
 ```
 
 ### Notes
@@ -119,17 +120,17 @@ Returning all items from a single model effectively overloads servers and networ
 ### ❌ Wrong
 ```python
 class ProductViewSet(viewsets.ModelViewSet):
- queryset = Product.objects.all()
- serializer_class = ProductSerializer
- pagination_class = None # DANGEROUS!
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    pagination_class = None  # DANGEROUS!
 ```
 
 ### ✅ Right
 ```python
 # In settings.py:
 REST_FRAMEWORK = {
- 'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
- 'PAGE_SIZE': 50
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 50,
 }
 ```
 

@@ -126,9 +126,9 @@ Validating cleanly strictly robustly at the Django application level fails durin
 
 ### ❌ Wrong
 ```python
-# Validation in Python heavily suffers from race conditions 
+# Validation in Python heavily suffers from race conditions
 if not User.objects.filter(email=email).exists():
- User.objects.create(email=email)
+    User.objects.create(email=email)
 ```
 
 ### ✅ Right

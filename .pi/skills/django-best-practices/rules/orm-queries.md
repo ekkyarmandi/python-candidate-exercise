@@ -9,19 +9,19 @@ The N+1 query problem occurs when you access a related object in a loop. Django'
 books = Book.objects.all()
 
 for book in books:
- # Triggers a NEW query for each book to get its author
- # If there are 100 books, this executes 101 queries
- print(book.author.name)
+    # Triggers a NEW query for each book to get its author
+    # If there are 100 books, this executes 101 queries
+    print(book.author.name)
 ```
 
 ### ✅ Right
 ```python
 # Fetches all books AND their authors in a single JOIN (1 query total)
-books = Book.objects.select_related('author').all()
+books = Book.objects.select_related("author").all()
 
 for book in books:
- # Author data is already in memory, no new queries are triggered
- print(book.author.name)
+    # Author data is already in memory, no new queries are triggered
+    print(book.author.name)
 ```
 
 ### Notes
@@ -41,17 +41,17 @@ Fetching columns from the database that you don't actually use wastes database m
 users = User.objects.all()
 
 for user in users:
- # We only care about the username and email, but we fetched the entire profile/bio
- send_email(user.username, user.email)
+    # We only care about the username and email, but we fetched the entire profile/bio
+    send_email(user.username, user.email)
 ```
 
 ### ✅ Right
 ```python
 # Fetches ONLY the id, username, and email fields
-users = User.objects.only('id', 'username', 'email')
+users = User.objects.only("id", "username", "email")
 
 for user in users:
- send_email(user.username, user.email)
+    send_email(user.username, user.email)
 ```
 
 ### Notes
@@ -103,14 +103,14 @@ It's notoriously difficult to guess exactly what SQL the Django ORM is generatin
 ### ❌ Wrong
 ```python
 # Guessing that this is fast without profiling it
-expensive_query = MyModel.objects.filter(name__icontains="test").order_by('-created_at')
+expensive_query = MyModel.objects.filter(name__icontains="test").order_by("-created_at")
 results = list(expensive_query)
 ```
 
 ### ✅ Right
 ```python
 # Print the exact query execution plan
-expensive_query = MyModel.objects.filter(name__icontains="test").order_by('-created_at')
+expensive_query = MyModel.objects.filter(name__icontains="test").order_by("-created_at")
 
 # Prints the database's query plan, showing sequential scans or index usage
 print(expensive_query.explain(analyze=True))

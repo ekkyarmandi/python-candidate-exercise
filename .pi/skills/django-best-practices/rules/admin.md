@@ -7,18 +7,18 @@ The Django Admin interface is often susceptible to severe N+1 queries. Displayin
 ```python
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
- # Customer is a ForeignKey. Rendering this page sends 101 queries for 100 rows.
- list_display = ('id', 'customer', 'total_amount')
+    # Customer is a ForeignKey. Rendering this page sends 101 queries for 100 rows.
+    list_display = ("id", "customer", "total_amount")
 ```
 
 ### ✅ Right
 ```python
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
- list_display = ('id', 'customer', 'total_amount')
- 
- # Pre-select related models effortlessly to optimize rendering down to 1 query
- list_select_related = ('customer',)
+    list_display = ("id", "customer", "total_amount")
+
+    # Pre-select related models effortlessly to optimize rendering down to 1 query
+    list_select_related = ("customer",)
 ```
 
 ### Notes
@@ -35,26 +35,28 @@ The default Django Admin renders every single ForeignKey as an HTML `<select>` d
 ```python
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
- # Relies on the default behavior that loads the entire linked table into a dropdown
- pass
+    # Relies on the default behavior that loads the entire linked table into a dropdown
+    pass
 ```
 
 ### ✅ Right
 ```python
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
- # Defends memory entirely by forcing the use of an directly minimal text field
- raw_id_fields = ('customer',)
- 
+    # Defends memory entirely by forcing the use of an directly minimal text field
+    raw_id_fields = ("customer",)
+
+
 # Alternatively, enforce a powerful searchable autocomplete widget cleanly:
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
- search_fields = ['email']
+    search_fields = ["email"]
+
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
- # Requires defining search_fields on the target UserAdmin securely
- autocomplete_fields = ('customer',)
+    # Requires defining search_fields on the target UserAdmin securely
+    autocomplete_fields = ("customer",)
 ```
 
 ### Notes

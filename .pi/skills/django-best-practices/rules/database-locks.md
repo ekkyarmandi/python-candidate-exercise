@@ -9,23 +9,24 @@ When multiple processes (like concurrent API requests or Celery workers) attempt
 # Both will add 50 and set balance=150.
 # The final result is 150 instead of 200.
 def deposit_money(wallet_id, amount):
- wallet = Wallet.objects.get(id=wallet_id)
- wallet.balance += amount
- wallet.save()
+    wallet = Wallet.objects.get(id=wallet_id)
+    wallet.balance += amount
+    wallet.save()
 ```
 
 ### ✅ Right
 ```python
 from django.db import transaction
 
+
 # directly lock the row using physical database-level row locks
 @transaction.atomic
 def deposit_money(wallet_id, amount):
- # This process locks the row. Any other concurrent request simply waits here
- # until the first transaction cleanly completes and releases the lock.
- wallet = Wallet.objects.select_for_update().get(id=wallet_id)
- wallet.balance += amount
- wallet.save(update_fields=['balance'])
+    # This process locks the row. Any other concurrent request simply waits here
+    # until the first transaction cleanly completes and releases the lock.
+    wallet = Wallet.objects.select_for_update().get(id=wallet_id)
+    wallet.balance += amount
+    wallet.save(update_fields=["balance"])
 ```
 
 ### Notes
@@ -44,8 +45,8 @@ Occasionally, having a process wait for a lock is a terrible idea—for example,
 # A worker pulls jobs, but if another worker has the lock, it just hangs forever.
 @transaction.atomic
 def process_job():
- job = Job.objects.select_for_update().filter(status='pending').first()
- # Execute job
+    job = Job.objects.select_for_update().filter(status="pending").first()
+    # Execute job
 ```
 
 ### ✅ Right

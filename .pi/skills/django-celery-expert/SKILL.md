@@ -45,6 +45,7 @@ Apply the patterns from the reference file. Before presenting the solution, veri
 from celery import shared_task
 from django.core.mail import send_mail
 
+
 @shared_task(bind=True, max_retries=3)
 def send_welcome_email(self, user_id):
     from users.models import User
@@ -60,11 +61,12 @@ def send_welcome_email(self, user_id):
     except User.DoesNotExist:
         pass
     except Exception as exc:
-        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+        raise self.retry(exc=exc, countdown=60 * (2**self.request.retries))
 
 
 # views.py — queue only after the transaction commits
 from django.db import transaction
+
 
 def register(request):
     user = User.objects.create(...)
@@ -107,6 +109,7 @@ if result.state == "PROGRESS":
 ```python
 from celery import chain
 
+
 @shared_task
 def validate_inventory(order_id):
     order = Order.objects.get(id=order_id)
@@ -114,15 +117,18 @@ def validate_inventory(order_id):
         raise ValueError("Items out of stock")
     return order_id
 
+
 @shared_task
 def charge_payment(order_id):
     order = Order.objects.get(id=order_id)
     order.charge()
     return order_id
 
+
 @shared_task
 def send_confirmation(order_id):
     Order.objects.get(id=order_id).send_confirmation_email()
+
 
 def process_order(order_id):
     chain(

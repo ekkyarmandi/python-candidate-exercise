@@ -16,7 +16,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("myapp", "0041_previous_migration"),
     ]
@@ -43,7 +42,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("myapp", "0042_remove_mymodel_myfield_from_state"),
     ]
@@ -104,7 +102,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("myapp", "0044_previous_migration"),
     ]
@@ -132,7 +129,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("myapp", "0045_previous_migration"),
         ("otherapp", "0010_othermodel"),
@@ -211,7 +207,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("myapp", "0047_previous_migration"),
     ]
@@ -248,7 +243,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("myapp", "0048_previous_migration"),
     ]
@@ -299,7 +293,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("myapp", "0050_mymodel_validate_myfield_not_null"),
     ]
@@ -345,13 +338,15 @@ from django.db import migrations
 
 
 def backfill_status(apps, schema_editor):
-    MyModel = apps.get_model("myapp", "MyModel")  # always apps.get_model, never direct import
+    MyModel = apps.get_model(
+        "myapp", "MyModel"
+    )  # always apps.get_model, never direct import
     batch_size = 1000
     while True:
         batch_ids = list(
-            MyModel.objects
-            .filter(status__isnull=True)[:batch_size]
-            .values_list("pk", flat=True)
+            MyModel.objects.filter(status__isnull=True)[:batch_size].values_list(
+                "pk", flat=True
+            )
         )
         if not batch_ids:
             break
@@ -359,7 +354,6 @@ def backfill_status(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("myapp", "0051_previous_migration"),
     ]

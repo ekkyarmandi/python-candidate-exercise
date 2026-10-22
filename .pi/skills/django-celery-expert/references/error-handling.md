@@ -7,6 +7,7 @@
 ```python
 from celery import shared_task
 
+
 @shared_task(bind=True, max_retries=3)
 def task_with_retry(self, data):
     try:
@@ -37,7 +38,7 @@ def task_with_backoff(self, data):
         process(data)
     except TemporaryError as exc:
         # Exponential backoff: 1min, 2min, 4min, 8min, 16min
-        countdown = 60 * (2 ** self.request.retries)
+        countdown = 60 * (2**self.request.retries)
         raise self.retry(exc=exc, countdown=countdown)
 ```
 
@@ -46,13 +47,14 @@ def task_with_backoff(self, data):
 ```python
 import random
 
+
 @shared_task(bind=True, max_retries=5)
 def task_with_jitter(self, data):
     try:
         process(data)
     except TemporaryError as exc:
         # Add randomness to prevent thundering herd
-        base_delay = 60 * (2 ** self.request.retries)
+        base_delay = 60 * (2**self.request.retries)
         jitter = random.uniform(0, base_delay * 0.1)
         raise self.retry(exc=exc, countdown=base_delay + jitter)
 ```
@@ -100,6 +102,7 @@ def robust_api_call(url):
 ```python
 from celery.exceptions import MaxRetriesExceededError
 
+
 @shared_task(bind=True, max_retries=3)
 def task_with_exception_handling(self, order_id):
     try:
@@ -114,12 +117,12 @@ def task_with_exception_handling(self, order_id):
     except PaymentGatewayError as exc:
         # Temporary - retry with backoff
         logger.warning(f"Payment gateway error: {exc}")
-        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+        raise self.retry(exc=exc, countdown=60 * (2**self.request.retries))
 
     except InsufficientFundsError:
         # Business logic failure - don't retry
         order.mark_payment_failed()
-        return {'status': 'failed', 'reason': 'insufficient_funds'}
+        return {"status": "failed", "reason": "insufficient_funds"}
 
     except MaxRetriesExceededError:
         # All retries exhausted
@@ -156,10 +159,11 @@ def task_with_cleanup(self, resource_id):
 ```python
 from celery.exceptions import SoftTimeLimitExceeded
 
+
 @shared_task(
     bind=True,
     soft_time_limit=300,  # Raise exception after 5 min
-    time_limit=360,       # Kill process after 6 min
+    time_limit=360,  # Kill process after 6 min
 )
 def task_with_timeout(self, large_dataset):
     try:
@@ -191,9 +195,10 @@ def dynamic_timeout_task(self, data, timeout=300):
 from kombu import Queue
 
 CELERY_TASK_QUEUES = (
-    Queue('default'),
-    Queue('dead_letter'),
+    Queue("default"),
+    Queue("dead_letter"),
 )
+
 
 @shared_task(bind=True, max_retries=3)
 def task_with_dlq(self, data):
@@ -213,7 +218,7 @@ def task_with_dlq(self, data):
         raise self.retry(exc=exc, countdown=60)
 
 
-@shared_task(queue='dead_letter')
+@shared_task(queue="dead_letter")
 def handle_dead_letter(task_name, args, kwargs, exception, traceback):
     # Store for manual review
     DeadLetterMessage.objects.create(
@@ -232,18 +237,18 @@ def handle_dead_letter(task_name, args, kwargs, exception, traceback):
 from kombu import Exchange, Queue
 
 # Configure dead letter exchange in RabbitMQ
-dlx = Exchange('dlx', type='direct')
+dlx = Exchange("dlx", type="direct")
 dead_letter_queue = Queue(
-    'dead_letters',
+    "dead_letters",
     exchange=dlx,
-    routing_key='dead_letter',
+    routing_key="dead_letter",
 )
 
 main_queue = Queue(
-    'default',
+    "default",
     queue_arguments={
-        'x-dead-letter-exchange': 'dlx',
-        'x-dead-letter-routing-key': 'dead_letter',
+        "x-dead-letter-exchange": "dlx",
+        "x-dead-letter-routing-key": "dead_letter",
     },
 )
 
@@ -257,10 +262,11 @@ CELERY_TASK_QUEUES = (main_queue, dead_letter_queue)
 ```python
 from celery import Task
 
+
 class TaskWithErrorCallback(Task):
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         logger.error(
-            f'Task {self.name}[{task_id}] failed: {exc}',
+            f"Task {self.name}[{task_id}] failed: {exc}",
             exc_info=einfo.exc_info,
         )
         # Send notification
@@ -282,14 +288,15 @@ def task_with_error_callback(self, data):
 @shared_task
 def error_handler(request, exc, traceback):
     logger.error(
-        f'Task {request.id} raised exception: {exc}',
+        f"Task {request.id} raised exception: {exc}",
         extra={
-            'task_id': request.id,
-            'task_name': request.task,
-            'args': request.args,
-            'kwargs': request.kwargs,
-        }
+            "task_id": request.id,
+            "task_name": request.task,
+            "args": request.args,
+            "kwargs": request.kwargs,
+        },
     )
+
 
 # Attach error callback when calling
 my_task.apply_async(
@@ -308,7 +315,7 @@ def idempotent_payment_task(self, order_id, idempotency_key):
     # Check if already processed
     if PaymentRecord.objects.filter(idempotency_key=idempotency_key).exists():
         logger.info(f"Payment {idempotency_key} already processed")
-        return {'status': 'already_processed'}
+        return {"status": "already_processed"}
 
     try:
         result = process_payment(order_id)
@@ -331,19 +338,20 @@ def idempotent_payment_task(self, order_id, idempotency_key):
 ```python
 from django.db import transaction
 
+
 @shared_task(bind=True, max_retries=3)
 def transactional_task(self, order_id):
     try:
         with transaction.atomic():
             order = Order.objects.select_for_update().get(id=order_id)
 
-            if order.status == 'processed':
-                return {'status': 'already_processed'}
+            if order.status == "processed":
+                return {"status": "already_processed"}
 
             # All-or-nothing processing
             process_order(order)
             update_inventory(order)
-            order.status = 'processed'
+            order.status = "processed"
             order.save()
 
     except Order.DoesNotExist:
@@ -361,30 +369,32 @@ def transactional_task(self, order_id):
 # celery.py
 import logging
 
-logger = logging.getLogger('celery.task')
+logger = logging.getLogger("celery.task")
+
 
 @signals.task_failure.connect
 def log_task_failure(sender, task_id, exception, args, kwargs, traceback, einfo, **kw):
     logger.error(
-        f'Task {sender.name}[{task_id}] failed',
+        f"Task {sender.name}[{task_id}] failed",
         exc_info=einfo.exc_info,
         extra={
-            'task_name': sender.name,
-            'task_id': task_id,
-            'args': args,
-            'kwargs': kwargs,
-        }
+            "task_name": sender.name,
+            "task_id": task_id,
+            "args": args,
+            "kwargs": kwargs,
+        },
     )
+
 
 @signals.task_retry.connect
 def log_task_retry(sender, request, reason, einfo, **kw):
     logger.warning(
-        f'Task {sender.name}[{request.id}] retrying: {reason}',
+        f"Task {sender.name}[{request.id}] retrying: {reason}",
         extra={
-            'task_name': sender.name,
-            'task_id': request.id,
-            'retry_count': request.retries,
-        }
+            "task_name": sender.name,
+            "task_id": request.id,
+            "retry_count": request.retries,
+        },
     )
 ```
 
@@ -402,18 +412,19 @@ class FailedTask(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     retried = models.BooleanField(default=False)
 
+
 # signals
 @signals.task_failure.connect
 def store_failed_task(sender, task_id, exception, args, kwargs, traceback, einfo, **kw):
     FailedTask.objects.update_or_create(
         task_id=task_id,
         defaults={
-            'task_name': sender.name,
-            'args': list(args),
-            'kwargs': dict(kwargs),
-            'exception': str(exception),
-            'traceback': einfo.traceback if einfo else '',
-        }
+            "task_name": sender.name,
+            "args": list(args),
+            "kwargs": dict(kwargs),
+            "exception": str(exception),
+            "traceback": einfo.traceback if einfo else "",
+        },
     )
 ```
 
@@ -437,12 +448,12 @@ def store_failed_task(sender, task_id, exception, args, kwargs, traceback, einfo
 @shared_task(
     bind=True,
     autoretry_for=(ConnectionError, TimeoutError),
-    retry_backoff=True,        # Exponential backoff
-    retry_backoff_max=600,     # Max 10 min between retries
-    retry_jitter=True,         # Add randomness
-    max_retries=5,             # Limit total attempts
-    acks_late=True,            # Ack after completion
-    reject_on_worker_lost=True # Requeue if worker dies
+    retry_backoff=True,  # Exponential backoff
+    retry_backoff_max=600,  # Max 10 min between retries
+    retry_jitter=True,  # Add randomness
+    max_retries=5,  # Limit total attempts
+    acks_late=True,  # Ack after completion
+    reject_on_worker_lost=True,  # Requeue if worker dies
 )
 def production_task(self, data):
     pass

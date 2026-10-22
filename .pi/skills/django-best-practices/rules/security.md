@@ -6,7 +6,7 @@ Exposing autoincrementing integer primary keys reveals business intelligence (ho
 ### ❌ Wrong
 ```python
 # Exposes the exact database sequence ID
-path('users/<int:user_id>/', user_profile, name='user_profile')
+path("users/<int:user_id>/", user_profile, name="user_profile")
 
 # Attacker can easily guess users/1/, users/2/, users/3/ and scrape your entire database
 ```
@@ -16,12 +16,14 @@ path('users/<int:user_id>/', user_profile, name='user_profile')
 import uuid
 from django.db import models
 
+
 class User(models.Model):
- # Create a secure, unguessable UUID
- uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    # Create a secure, unguessable UUID
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+
 
 # URL completely prevents enumeration attacks
-path('users/<uuid:user_uuid>/', user_profile, name='user_profile')
+path("users/<uuid:user_uuid>/", user_profile, name="user_profile")
 ```
 
 ### Notes
@@ -40,12 +42,7 @@ Hardcoding `SECRET_KEY`, database credentials, or API keys directly in source co
 # settings.py
 DEBUG = True
 SECRET_KEY = "django-insecure-hardcoded-secret"
-DATABASES = {
- 'default': {
- 'USER': 'postgres',
- 'PASSWORD': 'super_secret_password'
- }
-}
+DATABASES = {"default": {"USER": "postgres", "PASSWORD": "super_secret_password"}}
 ```
 
 ### ✅ Right
@@ -56,12 +53,10 @@ import environ
 env = environ.Env()
 
 # Fails and cleanly if the environment variable is fundamentally missing
-DEBUG = env.bool('DJANGO_DEBUG', default=False)
-SECRET_KEY = env('DJANGO_SECRET_KEY')
+DEBUG = env.bool("DJANGO_DEBUG", default=False)
+SECRET_KEY = env("DJANGO_SECRET_KEY")
 
-DATABASES = {
- 'default': env.db('DATABASE_URL')
-}
+DATABASES = {"default": env.db("DATABASE_URL")}
 ```
 
 ### Notes
@@ -79,12 +74,13 @@ Cross Site Request Forgery (CSRF) allows a malicious site to trick a user's brow
 ```python
 from django.views.decorators.csrf import csrf_exempt
 
+
 # Blindly exempting a view because the developer didn't want to figure out how to pass the token
 @csrf_exempt
 def update_profile(request):
- request.user.email = request.POST['email']
- request.user.save()
- return HttpResponse('Profile updated')
+    request.user.email = request.POST["email"]
+    request.user.save()
+    return HttpResponse("Profile updated")
 ```
 
 ### ✅ Right
@@ -112,14 +108,14 @@ If `ALLOWED_HOSTS` is misconfigured or empty (or `*`), an attacker can craft req
 ### ❌ Wrong
 ```python
 # settings.py
-ALLOWED_HOSTS = ['*'] # Completely disables Host header validation
+ALLOWED_HOSTS = ["*"]  # Completely disables Host header validation
 ```
 
 ### ✅ Right
 ```python
 # settings.py
 # Only directly strictly accept exact known domains
-ALLOWED_HOSTS = ['www.myapp.com', 'myapp.com']
+ALLOWED_HOSTS = ["www.myapp.com", "myapp.com"]
 ```
 
 ### Notes

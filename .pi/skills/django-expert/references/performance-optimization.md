@@ -11,7 +11,7 @@ for post in posts:
     print(post.author.username)  # N additional queries!
 
 # ✅ GOOD: 1 query with JOIN
-posts = Post.objects.select_related('author').all()
+posts = Post.objects.select_related("author").all()
 for post in posts:
     print(post.author.username)  # No additional queries!
 ```
@@ -22,10 +22,10 @@ See `models-and-orm.md` for comprehensive coverage of select_related, prefetch_r
 
 ```python
 # ✅ GOOD: Load only needed fields
-users = User.objects.only('id', 'username', 'email')
+users = User.objects.only("id", "username", "email")
 
 # ✅ GOOD: Exclude large fields
-posts = Post.objects.defer('content')  # Skip content field
+posts = Post.objects.defer("content")  # Skip content field
 ```
 
 ### Database Indexes
@@ -39,15 +39,17 @@ class Post(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=['created_at']),  # For ordering
-            models.Index(fields=['is_published', 'created_at']),  # Composite
-            models.Index(fields=['-view_count']),  # For popular posts
+            models.Index(fields=["created_at"]),  # For ordering
+            models.Index(fields=["is_published", "created_at"]),  # Composite
+            models.Index(fields=["-view_count"]),  # For popular posts
         ]
+
 
 # ✅ GOOD: Check if index is used
 # Run: EXPLAIN ANALYZE SELECT ...
 from django.db import connection
-queryset = Post.objects.filter(is_published=True).order_by('-created_at')
+
+queryset = Post.objects.filter(is_published=True).order_by("-created_at")
 print(queryset.query)
 ```
 
@@ -56,10 +58,10 @@ print(queryset.query)
 ```python
 # ❌ BAD: N queries
 for i in range(1000):
-    Post.objects.create(title=f'Post {i}')
+    Post.objects.create(title=f"Post {i}")
 
 # ✅ GOOD: 1 query
-posts = [Post(title=f'Post {i}') for i in range(1000)]
+posts = [Post(title=f"Post {i}") for i in range(1000)]
 Post.objects.bulk_create(posts, batch_size=500)
 
 # ❌ BAD: N updates
@@ -68,7 +70,7 @@ for post in posts:
     post.save()
 
 # ✅ GOOD: 1 query
-Post.objects.filter(id__in=post_ids).update(view_count=F('view_count') + 1)
+Post.objects.filter(id__in=post_ids).update(view_count=F("view_count") + 1)
 ```
 
 ### Query Profiling
@@ -79,11 +81,11 @@ from django.test.utils import override_settings
 
 # Check number of queries
 with override_settings(DEBUG=True):
-    posts = Post.objects.select_related('author').all()
+    posts = Post.objects.select_related("author").all()
     list(posts)  # Force evaluation
     print(f"Queries: {len(connection.queries)}")
     for query in connection.queries:
-        print(query['sql'])
+        print(query["sql"])
 ```
 
 ## Caching
@@ -93,14 +95,14 @@ with override_settings(DEBUG=True):
 ```python
 # settings.py
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
-        'KEY_PREFIX': 'myapp',
-        'TIMEOUT': 300,  # 5 minutes default
+        "KEY_PREFIX": "myapp",
+        "TIMEOUT": 300,  # 5 minutes default
     }
 }
 ```
@@ -110,30 +112,35 @@ CACHES = {
 ```python
 from django.core.cache import cache
 
+
 # ✅ GOOD: Cache expensive queries
 def get_popular_posts():
-    posts = cache.get('popular_posts')
+    posts = cache.get("popular_posts")
     if posts is None:
-        posts = Post.objects.filter(
-            is_published=True
-        ).select_related('author').order_by('-view_count')[:10]
-        cache.set('popular_posts', posts, timeout=300)  # 5 minutes
+        posts = (
+            Post.objects.filter(is_published=True)
+            .select_related("author")
+            .order_by("-view_count")[:10]
+        )
+        cache.set("popular_posts", posts, timeout=300)  # 5 minutes
     return posts
+
 
 # ✅ GOOD: Cache with complex key
 def get_user_posts(user_id):
-    cache_key = f'user_{user_id}_posts'
+    cache_key = f"user_{user_id}_posts"
     posts = cache.get(cache_key)
     if posts is None:
         posts = Post.objects.filter(author_id=user_id)
         cache.set(cache_key, posts, timeout=600)
     return posts
 
+
 # Invalidate cache
 def create_post(user, data):
     post = Post.objects.create(author=user, **data)
-    cache.delete(f'user_{user.id}_posts')  # Invalidate
-    cache.delete('popular_posts')
+    cache.delete(f"user_{user.id}_posts")  # Invalidate
+    cache.delete("popular_posts")
     return post
 ```
 
@@ -142,14 +149,17 @@ def create_post(user, data):
 ```python
 from django.views.decorators.cache import cache_page
 
+
 # ✅ GOOD: Cache entire view response
 @cache_page(60 * 15)  # 15 minutes
 def blog_list(request):
     posts = Post.objects.filter(is_published=True)
-    return render(request, 'blog/list.html', {'posts': posts})
+    return render(request, "blog/list.html", {"posts": posts})
+
 
 # ✅ GOOD: Cache with conditional logic
 from django.views.decorators.cache import cache_control
+
 
 @cache_control(max_age=3600, public=True)
 def public_content(request):
@@ -182,13 +192,13 @@ def public_content(request):
 # ✅ GOOD: Cache with get_or_set
 from django.core.cache import cache
 
+
 def get_post_stats(post_id):
-    cache_key = f'post_{post_id}_stats'
+    cache_key = f"post_{post_id}_stats"
     return cache.get_or_set(
-        cache_key,
-        lambda: compute_expensive_stats(post_id),
-        timeout=3600
+        cache_key, lambda: compute_expensive_stats(post_id), timeout=3600
     )
+
 
 # ✅ GOOD: Cache invalidation pattern
 class Post(models.Model):
@@ -197,13 +207,13 @@ class Post(models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         # Invalidate related caches
-        cache.delete(f'post_{self.id}_detail')
-        cache.delete('popular_posts')
-        cache.delete(f'user_{self.author_id}_posts')
+        cache.delete(f"post_{self.id}_detail")
+        cache.delete("popular_posts")
+        cache.delete(f"user_{self.author_id}_posts")
 
     def delete(self, *args, **kwargs):
-        cache.delete(f'post_{self.id}_detail')
-        cache.delete('popular_posts')
+        cache.delete(f"post_{self.id}_detail")
+        cache.delete("popular_posts")
         super().delete(*args, **kwargs)
 ```
 
@@ -214,16 +224,16 @@ class Post(models.Model):
 ```python
 # settings.py
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'mydb',
-        'USER': 'myuser',
-        'PASSWORD': 'mypass',
-        'HOST': '127.0.0.1',
-        'PORT': '6432',  # pgbouncer port
-        'CONN_MAX_AGE': 600,  # Connection pooling
-        'OPTIONS': {
-            'connect_timeout': 10,
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "mydb",
+        "USER": "myuser",
+        "PASSWORD": "mypass",
+        "HOST": "127.0.0.1",
+        "PORT": "6432",  # pgbouncer port
+        "CONN_MAX_AGE": 600,  # Connection pooling
+        "OPTIONS": {
+            "connect_timeout": 10,
         },
     }
 }
@@ -259,21 +269,21 @@ pip install django-compressor
 
 ```python
 # settings.py
-INSTALLED_APPS += ['compressor']
+INSTALLED_APPS += ["compressor"]
 
 COMPRESS_ENABLED = True
 COMPRESS_CSS_FILTERS = [
-    'compressor.filters.css_default.CssAbsoluteFilter',
-    'compressor.filters.cssmin.CSSMinFilter',
+    "compressor.filters.css_default.CssAbsoluteFilter",
+    "compressor.filters.cssmin.CSSMinFilter",
 ]
 COMPRESS_JS_FILTERS = [
-    'compressor.filters.jsmin.JSMinFilter',
+    "compressor.filters.jsmin.JSMinFilter",
 ]
 
 STATICFILES_FINDERS = [
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-    'compressor.finders.CompressorFinder',
+    "django.contrib.staticfiles.finders.FileSystemFinder",
+    "django.contrib.staticfiles.finders.AppDirectoriesFinder",
+    "compressor.finders.CompressorFinder",
 ]
 ```
 
@@ -297,19 +307,19 @@ STATICFILES_FINDERS = [
 # settings.py
 # Use WhiteNoise for serving static files
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add this
-    ...
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Add this
+    ...,
 ]
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Or use S3/CloudFront
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-STATICFILES_STORAGE = 'storages.backends.s3boto3.S3StaticStorage'
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+STATICFILES_STORAGE = "storages.backends.s3boto3.S3StaticStorage"
 
-AWS_S3_CUSTOM_DOMAIN = 'd123456.cloudfront.net'
-STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
+AWS_S3_CUSTOM_DOMAIN = "d123456.cloudfront.net"
+STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
 ```
 
 ## Background Tasks with Celery
@@ -323,22 +333,23 @@ pip install celery redis
 from celery import Celery
 import os
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "myproject.settings")
 
-app = Celery('myproject')
-app.config_from_object('django.conf:settings', namespace='CELERY')
+app = Celery("myproject")
+app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
 # settings.py
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TIMEZONE = 'UTC'
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
+CELERY_TASK_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TIMEZONE = "UTC"
 
 # tasks.py
 from celery import shared_task
 import time
+
 
 @shared_task
 def send_email(user_id, template):
@@ -346,23 +357,25 @@ def send_email(user_id, template):
     user = User.objects.get(id=user_id)
     # Send email logic
     time.sleep(2)  # Simulate email sending
-    return f'Email sent to {user.email}'
+    return f"Email sent to {user.email}"
+
 
 @shared_task
 def generate_report(report_id):
     """Generate report in background."""
     report = Report.objects.get(id=report_id)
     # Generate report logic
-    report.status = 'completed'
+    report.status = "completed"
     report.save()
     return report_id
+
 
 # views.py
 def register(request):
     user = User.objects.create_user(...)
     # ✅ GOOD: Send email asynchronously
-    send_email.delay(user.id, 'welcome')
-    return redirect('home')
+    send_email.delay(user.id, "welcome")
+    return redirect("home")
 ```
 
 ## Pagination
@@ -370,21 +383,23 @@ def register(request):
 ```python
 from django.core.paginator import Paginator
 
+
 # ✅ GOOD: Paginate large querysets
 def blog_list(request):
-    posts = Post.objects.filter(is_published=True).select_related('author')
+    posts = Post.objects.filter(is_published=True).select_related("author")
     paginator = Paginator(posts, 20)  # 20 posts per page
 
-    page_number = request.GET.get('page', 1)
+    page_number = request.GET.get("page", 1)
     page_obj = paginator.get_page(page_number)
 
-    return render(request, 'blog/list.html', {'page_obj': page_obj})
+    return render(request, "blog/list.html", {"page_obj": page_obj})
+
 
 # DRF pagination
 # settings.py
 REST_FRAMEWORK = {
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
-    'PAGE_SIZE': 20,
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
+    "PAGE_SIZE": 20,
 }
 ```
 
@@ -398,11 +413,11 @@ class ExpensiveMiddleware:
 
     def __call__(self, request):
         # Skip for static files
-        if request.path.startswith('/static/'):
+        if request.path.startswith("/static/"):
             return self.get_response(request)
 
         # Only run for specific paths
-        if request.path.startswith('/api/'):
+        if request.path.startswith("/api/"):
             # Expensive processing
             ...
 
@@ -452,18 +467,19 @@ pip install django-debug-toolbar
 
 ```python
 # settings.py
-INSTALLED_APPS += ['debug_toolbar']
-MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
+INSTALLED_APPS += ["debug_toolbar"]
+MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
 
-INTERNAL_IPS = ['127.0.0.1']
+INTERNAL_IPS = ["127.0.0.1"]
 
 # urls.py
 from django.conf import settings
 
 if settings.DEBUG:
     import debug_toolbar
+
     urlpatterns = [
-        path('__debug__/', include(debug_toolbar.urls)),
+        path("__debug__/", include(debug_toolbar.urls)),
     ] + urlpatterns
 ```
 
@@ -482,11 +498,11 @@ pip install django-silk
 
 ```python
 # settings.py
-INSTALLED_APPS += ['silk']
-MIDDLEWARE += ['silk.middleware.SilkyMiddleware']
+INSTALLED_APPS += ["silk"]
+MIDDLEWARE += ["silk.middleware.SilkyMiddleware"]
 
 # urls.py
-urlpatterns += [path('silk/', include('silk.urls', namespace='silk'))]
+urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]
 ```
 
 ### Custom Performance Logging
@@ -498,8 +514,10 @@ from functools import wraps
 
 logger = logging.getLogger(__name__)
 
+
 def log_performance(func):
     """Decorator to log function performance."""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         start = time.time()
@@ -508,12 +526,13 @@ def log_performance(func):
 
         if duration > 1.0:  # Log if > 1 second
             logger.warning(
-                f"{func.__name__} took {duration:.2f}s",
-                extra={'duration': duration}
+                f"{func.__name__} took {duration:.2f}s", extra={"duration": duration}
             )
 
         return result
+
     return wrapper
+
 
 @log_performance
 def expensive_view(request):

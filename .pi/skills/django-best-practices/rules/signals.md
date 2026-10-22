@@ -17,10 +17,10 @@ def send_welcome_email(sender, instance, created, **kwargs):
 ```python
 # services.py
 def create_user(email, password):
- user = User.objects.create(email=email, password=password)
- # directly visible side-effect. Easy to mock in tests.
- emailer.send(user.email)
- return user
+    user = User.objects.create(email=email, password=password)
+    # directly visible side-effect. Easy to mock in tests.
+    emailer.send(user.email)
+    return user
 ```
 
 ### Notes
@@ -38,9 +38,9 @@ Putting core business logic inside signals fundamentally breaks predictability. 
 ```python
 @receiver(post_save, sender=Order)
 def update_inventory(sender, instance, **kwargs):
- # Core business logic hidden in a signal
- instance.product.stock -= instance.quantity
- instance.product.save()
+    # Core business logic hidden in a signal
+    instance.product.stock -= instance.quantity
+    instance.product.save()
 ```
 
 ### ✅ Right

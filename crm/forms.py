@@ -26,7 +26,7 @@ class ContactCreateForm(forms.Form):
         try:
             return Decimal(raw or "0")
         except InvalidOperation:
-            return Decimal("0")
+            return Decimal(0)
 
     def clean_new_status(self):
         new_status = (self.cleaned_data.get("new_status") or "").strip()

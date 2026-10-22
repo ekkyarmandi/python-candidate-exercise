@@ -7,29 +7,32 @@ Data migrations (`RunPython`) execute arbitrary Python logic over database rows.
 ```python
 # 0005_add_status_and_populate.py
 class Migration(migrations.Migration):
- operations = [
- # Schema change
- migrations.AddField('Order', 'status', models.CharField(max_length=20)),
- # Mixed directly with custom Data iteration
- migrations.RunPython(populate_status)
- ]
+    operations = [
+        # Schema change
+        migrations.AddField("Order", "status", models.CharField(max_length=20)),
+        # Mixed directly with custom Data iteration
+        migrations.RunPython(populate_status),
+    ]
 ```
 
 ### ✅ Right
 ```python
 # 0005_add_status_column.py
 class Migration(migrations.Migration):
- operations = [
- migrations.AddField('Order', 'status', models.CharField(max_length=20, null=True)),
- ]
+    operations = [
+        migrations.AddField(
+            "Order", "status", models.CharField(max_length=20, null=True)
+        ),
+    ]
+
 
 # 0006_populate_status_data.py
-# Creating a completely isolated file for the data logic 
+# Creating a completely isolated file for the data logic
 class Migration(migrations.Migration):
- dependencies = [('orders', '0005_add_status_column')]
- operations = [
- migrations.RunPython(populate_status, reverse_code=migrations.RunPython.noop)
- ]
+    dependencies = [("orders", "0005_add_status_column")]
+    operations = [
+        migrations.RunPython(populate_status, reverse_code=migrations.RunPython.noop)
+    ]
 ```
 
 ### Notes
@@ -46,23 +49,21 @@ Adding a completely new column to a database table containing 5 million rows req
 ### ❌ Wrong
 ```python
 class Migration(migrations.Migration):
- operations = [
- # Adding a default to an existing massive table locks the table entirely 
- migrations.AddField('User', 'is_verified', models.BooleanField(default=False)),
- ]
+    operations = [
+        # Adding a default to an existing massive table locks the table entirely
+        migrations.AddField("User", "is_verified", models.BooleanField(default=False)),
+    ]
 ```
 
 ### ✅ Right
 ```python
 class Migration(migrations.Migration):
- operations = [
- # Step 1: Add the column as nullable so it executes instantaneously
- migrations.AddField('User', 'is_verified', models.BooleanField(null=True)),
- 
- # Step 2: In a separate Data Migration, backfill records chunk by chunk
- 
- # Step 3: Add the strict NOT NULL constraint backward-compatibly in a 3rd migration
- ]
+    operations = [
+        # Step 1: Add the column as nullable so it executes instantaneously
+        migrations.AddField("User", "is_verified", models.BooleanField(null=True)),
+        # Step 2: In a separate Data Migration, backfill records chunk by chunk
+        # Step 3: Add the strict NOT NULL constraint backward-compatibly in a 3rd migration
+    ]
 ```
 
 ### Notes

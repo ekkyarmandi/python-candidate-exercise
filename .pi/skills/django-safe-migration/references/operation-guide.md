@@ -231,6 +231,7 @@ For anything requiring a value rewrite (e.g., varchar → integer, changing sema
 ```python
 from django.contrib.postgres.operations import AddIndexConcurrently
 
+
 class Migration(migrations.Migration):
     atomic = False  # required — CONCURRENTLY cannot run in a transaction
 
@@ -254,6 +255,7 @@ class Migration(migrations.Migration):
 
 ```python
 from django.contrib.postgres.operations import RemoveIndexConcurrently
+
 
 class Migration(migrations.Migration):
     atomic = False
@@ -434,6 +436,7 @@ migrations.RunSQL(
     """,
 )
 
+
 # Migration 2: validate (atomic = False, non-blocking)
 class Migration(migrations.Migration):
     atomic = False
@@ -471,6 +474,7 @@ Why: a direct import uses the *current* model class. In a migration, you need th
 # Wrong — uses current model, breaks if schema changes later
 from myapp.models import MyModel
 
+
 # Correct — uses historical model snapshot
 def migrate(apps, schema_editor):
     MyModel = apps.get_model("myapp", "MyModel")
@@ -492,9 +496,9 @@ def migrate(apps, schema_editor):
     batch_size = 1000
     while True:
         batch_ids = list(
-            MyModel.objects
-            .filter(status__isnull=True)[:batch_size]
-            .values_list("pk", flat=True)
+            MyModel.objects.filter(status__isnull=True)[:batch_size].values_list(
+                "pk", flat=True
+            )
         )
         if not batch_ids:
             break

@@ -41,17 +41,16 @@ Repeating complex `.filter().select_related().annotate()` querysets across your 
 ### ❌ Wrong
 ```python
 # In random places across the codebase
-active_premium = User.objects.filter(is_active=True, plan='premium').select_related('profile')
+active_premium = User.objects.filter(is_active=True, plan="premium").select_related(
+    "profile"
+)
 ```
 
 ### ✅ Right
 ```python
 # selectors/users.py
 def get_active_premium_users() -> QuerySet[User]:
- return User.objects.filter(
- is_active=True, 
- plan='premium'
- ).select_related('profile')
+    return User.objects.filter(is_active=True, plan="premium").select_related("profile")
 ```
 
 ### Notes

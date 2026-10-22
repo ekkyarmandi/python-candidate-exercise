@@ -13,22 +13,22 @@ Always use `transaction.on_commit()` when queuing tasks after database writes. T
 ```python
 from django.db import transaction
 
+
 class SignUpView(CreateView):
     def form_valid(self, form):
         response = super().form_valid(form)
         user_pk = self.object.pk
 
         # GOOD: Task queued only after transaction commits
-        transaction.on_commit(
-            lambda: send_activation_email.delay(user_pk)
-        )
+        transaction.on_commit(lambda: send_activation_email.delay(user_pk))
         return response
+
 
 # BAD: Task might run before user is committed to DB
 def bad_signup(request):
     user = User.objects.create(...)
     send_activation_email.delay(user.pk)  # Race condition!
-    return redirect('home')
+    return redirect("home")
 ```
 
 ### With Atomic Blocks
@@ -36,22 +36,22 @@ def bad_signup(request):
 ```python
 from django.db import transaction
 
+
 def process_order(order_id):
     with transaction.atomic():
         order = Order.objects.select_for_update().get(id=order_id)
-        order.status = 'processing'
+        order.status = "processing"
         order.save()
 
         # Queue task only after atomic block commits
-        transaction.on_commit(
-            lambda: notify_warehouse.delay(order.pk)
-        )
+        transaction.on_commit(lambda: notify_warehouse.delay(order.pk))
 ```
 
 ### Nested Transactions
 
 ```python
 from django.db import transaction
+
 
 def complex_operation():
     with transaction.atomic():
@@ -79,6 +79,7 @@ class User(models.Model):
     is_activation_email_sent = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+
 # tasks.py
 @shared_task(bind=True, max_retries=3)
 def send_activation_email(self, user_pk):
@@ -87,7 +88,7 @@ def send_activation_email(self, user_pk):
         if user.is_activation_email_sent:
             return  # Already sent, idempotent
 
-        send_email(user.email, 'Activate your account')
+        send_email(user.email, "Activate your account")
 
         # Mark as sent atomically
         User.objects.filter(pk=user_pk).update(is_activation_email_sent=True)
@@ -96,6 +97,7 @@ def send_activation_email(self, user_pk):
         pass  # User deleted, skip
     except EmailException as exc:
         raise self.retry(exc=exc)
+
 
 # Recovery task - runs periodically via Celery Beat
 @shared_task
@@ -107,7 +109,7 @@ def recover_unsent_activation_emails():
         created_at__lt=timezone.now() - timedelta(minutes=5),  # Grace period
         created_at__gt=cutoff,  # Don't process very old records
     )
-    for user_pk in unsent.values_list('pk', flat=True):
+    for user_pk in unsent.values_list("pk", flat=True):
         send_activation_email.delay(user_pk)
 ```
 
@@ -115,9 +117,9 @@ def recover_unsent_activation_emails():
 
 ```python
 CELERY_BEAT_SCHEDULE = {
-    'recover-activation-emails': {
-        'task': 'users.tasks.recover_unsent_activation_emails',
-        'schedule': crontab(minute='*/15'),  # Every 15 minutes
+    "recover-activation-emails": {
+        "task": "users.tasks.recover_unsent_activation_emails",
+        "schedule": crontab(minute="*/15"),  # Every 15 minutes
     },
 }
 ```
@@ -140,12 +142,13 @@ def sync_user_to_crm(self, user_id):
         )
 
         # DB update AFTER external call succeeds
-        user.crm_id = crm_response['id']
+        user.crm_id = crm_response["id"]
         user.crm_synced_at = timezone.now()
         user.save()
 
     except CRMAPIError as exc:
         raise self.retry(exc=exc)
+
 
 # BAD: DB updated before external call
 @shared_task
@@ -209,18 +212,19 @@ LOGGING = {
 import uuid
 from celery import shared_task
 
+
 @shared_task(bind=True)
 def task_with_correlation(self, data):
-    correlation_id = self.request.headers.get('correlation_id', 'unknown')
+    correlation_id = self.request.headers.get("correlation_id", "unknown")
     logger.info(f"[{correlation_id}] Processing task")
     # ... task logic
 
+
 # Pass correlation ID when calling
 def my_view(request):
-    correlation_id = request.headers.get('X-Correlation-ID', str(uuid.uuid4()))
+    correlation_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
     task_with_correlation.apply_async(
-        args=[data],
-        headers={'correlation_id': correlation_id}
+        args=[data], headers={"correlation_id": correlation_id}
     )
 ```
 
@@ -233,23 +237,27 @@ from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
 
+
 @shared_task(bind=True)
 def process_order(self, order_id):
-    logger.info(f'Starting order processing', extra={
-        'order_id': order_id,
-        'task_id': self.request.id,
-    })
+    logger.info(
+        f"Starting order processing",
+        extra={
+            "order_id": order_id,
+            "task_id": self.request.id,
+        },
+    )
 
     try:
         order = Order.objects.get(id=order_id)
         # ... process order
-        logger.info(f'Order processed successfully')
+        logger.info(f"Order processed successfully")
 
     except Order.DoesNotExist:
-        logger.warning(f'Order not found: {order_id}')
+        logger.warning(f"Order not found: {order_id}")
 
     except Exception as exc:
-        logger.exception(f'Order processing failed')
+        logger.exception(f"Order processing failed")
         raise
 ```
 
@@ -263,19 +271,18 @@ def update_user_stats(self, user_id, points_earned):
     try:
         # GOOD: Idempotent with get_or_create
         stats, created = UserStats.objects.get_or_create(
-            user_id=user_id,
-            defaults={'points': points_earned}
+            user_id=user_id, defaults={"points": points_earned}
         )
 
         if not created:
             # GOOD: Idempotent with update_or_create
             UserStats.objects.update_or_create(
-                user_id=user_id,
-                defaults={'points': F('points') + points_earned}
+                user_id=user_id, defaults={"points": F("points") + points_earned}
             )
 
     except Exception as exc:
         raise self.retry(exc=exc)
+
 
 # For truly idempotent operations, use unique constraints
 @shared_task
@@ -284,9 +291,9 @@ def record_event(event_id, user_id, event_type):
     Event.objects.get_or_create(
         idempotency_key=event_id,
         defaults={
-            'user_id': user_id,
-            'event_type': event_type,
-        }
+            "user_id": user_id,
+            "event_type": event_type,
+        },
     )
 ```
 
@@ -300,6 +307,7 @@ Tasks may run with stale model data. Always fetch fresh data.
 def bad_task(user_email, user_name):
     send_email(user_email, f"Hello {user_name}")
     # What if user updated their email before task ran?
+
 
 # GOOD: Fetch fresh data by ID
 @shared_task
@@ -320,10 +328,11 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # test_tasks.py
 from django.test import TestCase, override_settings
 
+
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
 class TaskTestCase(TestCase):
     def test_send_email_task(self):
-        user = User.objects.create(email='test@example.com')
+        user = User.objects.create(email="test@example.com")
         result = send_activation_email.delay(user.pk)
 
         # Task runs synchronously in tests
@@ -337,13 +346,17 @@ class TaskTestCase(TestCase):
 ```python
 from unittest.mock import patch
 
+
 class ViewTestCase(TestCase):
-    @patch('myapp.tasks.send_activation_email.delay')
+    @patch("myapp.tasks.send_activation_email.delay")
     def test_signup_queues_email(self, mock_task):
-        response = self.client.post('/signup/', {
-            'email': 'test@example.com',
-            'password': 'securepass123',
-        })
+        response = self.client.post(
+            "/signup/",
+            {
+                "email": "test@example.com",
+                "password": "securepass123",
+            },
+        )
 
         self.assertEqual(response.status_code, 302)
         mock_task.assert_called_once()
@@ -354,13 +367,14 @@ class ViewTestCase(TestCase):
 ```python
 from django.test import TestCase, TransactionTestCase
 
+
 class OnCommitTestCase(TransactionTestCase):
     """Use TransactionTestCase for on_commit testing."""
 
-    @patch('myapp.tasks.send_email.delay')
+    @patch("myapp.tasks.send_email.delay")
     def test_email_sent_after_commit(self, mock_task):
         # Task is queued after transaction commits
-        User.objects.create(email='test@example.com')
+        User.objects.create(email="test@example.com")
 
         # In TransactionTestCase, on_commit callbacks execute
         mock_task.assert_called_once()

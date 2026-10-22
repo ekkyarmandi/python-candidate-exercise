@@ -47,6 +47,7 @@ daphne myproject.asgi:application
 ```python
 # ✅ GOOD: Load from environment
 import os
+
 SECRET_KEY = os.environ["SECRET_KEY"]
 
 # ✅ GOOD: Load from file
@@ -55,10 +56,11 @@ with open("/etc/secrets/django_secret_key.txt") as f:
 
 # ✅ GOOD: Using python-decouple
 from decouple import config
-SECRET_KEY = config('SECRET_KEY')
+
+SECRET_KEY = config("SECRET_KEY")
 
 # ❌ BAD: Hardcoded in settings
-SECRET_KEY = 'django-insecure-hardcoded-key-123'
+SECRET_KEY = "django-insecure-hardcoded-key-123"
 ```
 
 **Key rotation with fallbacks:**
@@ -81,7 +83,7 @@ This allows existing sessions to work during key rotation. Remove old keys from 
 DEBUG = False
 
 # ✅ GOOD: Environment-based
-DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
+DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
 
 # ❌ NEVER in production
 DEBUG = True
@@ -99,13 +101,13 @@ DEBUG = True
 
 ```python
 # ✅ PRODUCTION: Specific hosts only
-ALLOWED_HOSTS = ['example.com', 'www.example.com']
+ALLOWED_HOSTS = ["example.com", "www.example.com"]
 
 # ✅ GOOD: From environment
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
 
 # ❌ BAD: Allows any host (CSRF vulnerability)
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ["*"]
 
 # ❌ BAD: Empty (Django will refuse to run)
 ALLOWED_HOSTS = []
@@ -138,28 +140,28 @@ server {
 ```python
 # ✅ PRODUCTION: Secure connection parameters
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ['DB_NAME'],
-        'USER': os.environ['DB_USER'],
-        'PASSWORD': os.environ['DB_PASSWORD'],
-        'HOST': os.environ['DB_HOST'],
-        'PORT': os.environ.get('DB_PORT', '5432'),
-        'CONN_MAX_AGE': 600,  # Persistent connections
-        'OPTIONS': {
-            'sslmode': 'require',  # Enforce SSL
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ["DB_NAME"],
+        "USER": os.environ["DB_USER"],
+        "PASSWORD": os.environ["DB_PASSWORD"],
+        "HOST": os.environ["DB_HOST"],
+        "PORT": os.environ.get("DB_PORT", "5432"),
+        "CONN_MAX_AGE": 600,  # Persistent connections
+        "OPTIONS": {
+            "sslmode": "require",  # Enforce SSL
         },
     }
 }
 
 # ❌ BAD: Hardcoded credentials
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'mydb',
-        'USER': 'postgres',
-        'PASSWORD': 'password123',
-        'HOST': 'localhost',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "mydb",
+        "USER": "postgres",
+        "PASSWORD": "password123",
+        "HOST": "localhost",
     }
 }
 ```
@@ -169,17 +171,17 @@ DATABASES = {
 ```python
 # ✅ GOOD: Persistent connections
 DATABASES = {
-    'default': {
-        'CONN_MAX_AGE': 600,  # Keep connections open for 10 minutes
+    "default": {
+        "CONN_MAX_AGE": 600,  # Keep connections open for 10 minutes
     }
 }
 
 # ✅ BETTER: External connection pooler (PgBouncer)
 DATABASES = {
-    'default': {
-        'HOST': 'pgbouncer-host',
-        'PORT': 6432,
-        'CONN_MAX_AGE': None,  # Let PgBouncer handle pooling
+    "default": {
+        "HOST": "pgbouncer-host",
+        "PORT": 6432,
+        "CONN_MAX_AGE": None,  # Let PgBouncer handle pooling
     }
 }
 ```
@@ -222,8 +224,8 @@ CSRF_COOKIE_SECURE = True
 # ✅ GOOD: Additional cookie security
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
 ```
 
 **HSTS (HTTP Strict Transport Security) considerations:**
@@ -266,11 +268,11 @@ server {
 
 ```python
 # settings.py
-STATIC_URL = '/static/'
-STATIC_ROOT = '/var/www/myproject/static/'
+STATIC_URL = "/static/"
+STATIC_ROOT = "/var/www/myproject/static/"
 
 # ✅ GOOD: Use CDN for static files
-STATIC_URL = 'https://cdn.example.com/static/'
+STATIC_URL = "https://cdn.example.com/static/"
 
 # ✅ GOOD: Enable compression
 STORAGES = {
@@ -302,13 +304,13 @@ location /static/ {
 
 ```python
 # settings.py
-MEDIA_URL = '/media/'
-MEDIA_ROOT = '/var/www/myproject/media/'
+MEDIA_URL = "/media/"
+MEDIA_ROOT = "/var/www/myproject/media/"
 
 # ✅ BETTER: Use object storage
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-AWS_STORAGE_BUCKET_NAME = 'my-bucket'
-AWS_S3_CUSTOM_DOMAIN = 'cdn.example.com'
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+AWS_STORAGE_BUCKET_NAME = "my-bucket"
+AWS_S3_CUSTOM_DOMAIN = "cdn.example.com"
 ```
 
 **Nginx media file serving:**
@@ -342,22 +344,22 @@ location /media/ {
 ```python
 # ✅ PRODUCTION: Redis cache
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/1'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PASSWORD': os.environ.get('REDIS_PASSWORD'),
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "PASSWORD": os.environ.get("REDIS_PASSWORD"),
         },
-        'KEY_PREFIX': 'myapp',
-        'TIMEOUT': 300,
+        "KEY_PREFIX": "myapp",
+        "TIMEOUT": 300,
     }
 }
 
 # ❌ DEVELOPMENT ONLY: Dummy cache
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+    "default": {
+        "BACKEND": "django.core.cache.backends.dummy.DummyCache",
     }
 }
 ```
@@ -366,11 +368,11 @@ CACHES = {
 
 ```python
 # ✅ PRODUCTION: Cached sessions
-SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 
 # ✅ ALSO GOOD: Redis sessions
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
 
 # ✅ GOOD: Set reasonable session timeout
 SESSION_COOKIE_AGE = 86400  # 24 hours
@@ -389,17 +391,22 @@ python manage.py clearsessions
 
 ```python
 # ✅ PRODUCTION: Cached template loader
-TEMPLATES = [{
-    'BACKEND': 'django.template.backends.django.DjangoTemplates',
-    'OPTIONS': {
-        'loaders': [
-            ('django.template.loaders.cached.Loader', [
-                'django.template.loaders.filesystem.Loader',
-                'django.template.loaders.app_directories.Loader',
-            ]),
-        ],
-    },
-}]
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "OPTIONS": {
+            "loaders": [
+                (
+                    "django.template.loaders.cached.Loader",
+                    [
+                        "django.template.loaders.filesystem.Loader",
+                        "django.template.loaders.app_directories.Loader",
+                    ],
+                ),
+            ],
+        },
+    }
+]
 ```
 
 This is automatically enabled when `DEBUG = False`, but explicit configuration provides better control.
@@ -412,18 +419,18 @@ This is automatically enabled when `DEBUG = False`, but explicit configuration p
 
 ```python
 # ✅ PRODUCTION: Proper email configuration
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.sendgrid.net')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.sendgrid.net")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 587))
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ['EMAIL_HOST_USER']
-EMAIL_HOST_PASSWORD = os.environ['EMAIL_HOST_PASSWORD']
+EMAIL_HOST_USER = os.environ["EMAIL_HOST_USER"]
+EMAIL_HOST_PASSWORD = os.environ["EMAIL_HOST_PASSWORD"]
 
-DEFAULT_FROM_EMAIL = 'noreply@example.com'
-SERVER_EMAIL = 'server@example.com'
+DEFAULT_FROM_EMAIL = "noreply@example.com"
+SERVER_EMAIL = "server@example.com"
 
 # ❌ DEVELOPMENT ONLY: Console backend
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 ```
 
 **Email services:**
@@ -443,39 +450,39 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 ```python
 # ✅ PRODUCTION: Comprehensive logging
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
         },
     },
-    'handlers': {
-        'file': {
-            'level': 'ERROR',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': '/var/log/django/error.log',
-            'maxBytes': 1024 * 1024 * 10,  # 10 MB
-            'backupCount': 5,
-            'formatter': 'verbose',
+    "handlers": {
+        "file": {
+            "level": "ERROR",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": "/var/log/django/error.log",
+            "maxBytes": 1024 * 1024 * 10,  # 10 MB
+            "backupCount": 5,
+            "formatter": "verbose",
         },
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
         },
     },
-    'loggers': {
-        'django': {
-            'handlers': ['file', 'console'],
-            'level': 'INFO',
-            'propagate': False,
+    "loggers": {
+        "django": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
         },
-        'myapp': {
-            'handlers': ['file', 'console'],
-            'level': 'INFO',
-            'propagate': False,
+        "myapp": {
+            "handlers": ["file", "console"],
+            "level": "INFO",
+            "propagate": False,
         },
     },
 }
@@ -486,17 +493,17 @@ LOGGING = {
 ```python
 # ✅ GOOD: Admin notifications
 ADMINS = [
-    ('Admin Name', 'admin@example.com'),
+    ("Admin Name", "admin@example.com"),
 ]
 
 MANAGERS = [
-    ('Manager Name', 'manager@example.com'),
+    ("Manager Name", "manager@example.com"),
 ]
 
 # Filter spurious 404s
 IGNORABLE_404_URLS = [
-    re.compile(r'\.(php|cgi)$'),
-    re.compile(r'^/phpmyadmin/'),
+    re.compile(r"\.(php|cgi)$"),
+    re.compile(r"^/phpmyadmin/"),
 ]
 ```
 
@@ -514,11 +521,11 @@ import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
 sentry_sdk.init(
-    dsn=os.environ.get('SENTRY_DSN'),
+    dsn=os.environ.get("SENTRY_DSN"),
     integrations=[DjangoIntegration()],
     traces_sample_rate=0.1,  # Performance monitoring
     send_default_pii=False,  # Don't send personal data
-    environment=os.environ.get('ENVIRONMENT', 'production'),
+    environment=os.environ.get("ENVIRONMENT", "production"),
 )
 ```
 
@@ -539,7 +546,7 @@ sentry_sdk.init(
 # ✅ PRODUCTION: Security headers
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = "DENY"
 
 # ✅ GOOD: Content Security Policy
 CSP_DEFAULT_SRC = ("'self'",)
@@ -553,7 +560,7 @@ CSP_IMG_SRC = ("'self'", "data:", "https:")
 ```python
 MIDDLEWARE = [
     # ...
-    'csp.middleware.CSPMiddleware',
+    "csp.middleware.CSPMiddleware",
 ]
 
 CSP_DEFAULT_SRC = ("'none'",)
@@ -573,14 +580,14 @@ CSP_FONT_SRC = ("'self'", "https://fonts.gstatic.com")
 
 ```python
 # ✅ PRODUCTION: Monitor slow queries
-LOGGING['loggers']['django.db.backends'] = {
-    'level': 'DEBUG' if DEBUG else 'WARNING',
-    'handlers': ['console'],
+LOGGING["loggers"]["django.db.backends"] = {
+    "level": "DEBUG" if DEBUG else "WARNING",
+    "handlers": ["console"],
 }
 
 # ✅ GOOD: Query timeout (PostgreSQL)
-DATABASES['default']['OPTIONS'] = {
-    'options': '-c statement_timeout=5000'  # 5 seconds
+DATABASES["default"]["OPTIONS"] = {
+    "options": "-c statement_timeout=5000"  # 5 seconds
 }
 ```
 
@@ -589,16 +596,16 @@ DATABASES['default']['OPTIONS'] = {
 ```python
 # ✅ Order matters for performance
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files early
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.cache.UpdateCacheMiddleware',  # Cache first
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.cache.FetchFromCacheMiddleware',  # Then fetch
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Serve static files early
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.cache.UpdateCacheMiddleware",  # Cache first
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.cache.FetchFromCacheMiddleware",  # Then fetch
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 ```
 
@@ -607,7 +614,7 @@ MIDDLEWARE = [
 ```python
 # ✅ Enable GZip compression
 MIDDLEWARE = [
-    'django.middleware.gzip.GZipMiddleware',  # Add near top
+    "django.middleware.gzip.GZipMiddleware",  # Add near top
     # ... other middleware
 ]
 ```
@@ -644,7 +651,7 @@ MIDDLEWARE = [...]
 from .base import *
 
 DEBUG = False
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
 SECURE_SSL_REDIRECT = True
 # ... production-specific settings
 ```
@@ -661,10 +668,10 @@ export DJANGO_SETTINGS_MODULE=myproject.settings.production
 # ✅ RECOMMENDED: python-decouple
 from decouple import config, Csv
 
-DEBUG = config('DEBUG', default=False, cast=bool)
-SECRET_KEY = config('SECRET_KEY')
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
-DATABASE_URL = config('DATABASE_URL')
+DEBUG = config("DEBUG", default=False, cast=bool)
+SECRET_KEY = config("SECRET_KEY")
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
+DATABASE_URL = config("DATABASE_URL")
 ```
 
 **.env file (never commit this):**
@@ -735,6 +742,7 @@ kill -HUP $(cat /tmp/gunicorn.pid)
 from django.http import JsonResponse
 from django.db import connection
 
+
 def health_check(request):
     """Simple health check endpoint for load balancers."""
     try:
@@ -744,12 +752,13 @@ def health_check(request):
 
         # Check cache
         from django.core.cache import cache
-        cache.set('health_check', 'ok', 10)
-        cache.get('health_check')
 
-        return JsonResponse({'status': 'healthy'})
+        cache.set("health_check", "ok", 10)
+        cache.get("health_check")
+
+        return JsonResponse({"status": "healthy"})
     except Exception as e:
-        return JsonResponse({'status': 'unhealthy', 'error': str(e)}, status=500)
+        return JsonResponse({"status": "unhealthy", "error": str(e)}, status=500)
 ```
 
 **Rule**: Implement health checks for load balancers and monitoring.
@@ -763,16 +772,19 @@ def health_check(request):
 ```python
 # ✅ New Relic
 import newrelic.agent
-newrelic.agent.initialize('/etc/newrelic.ini')
+
+newrelic.agent.initialize("/etc/newrelic.ini")
 
 # ✅ DataDog
 from ddtrace import patch_all
+
 patch_all()
 
 # ✅ Application Insights (Azure)
 from applicationinsights.django import ApplicationInsightsMiddleware
+
 MIDDLEWARE = [
-    'applicationinsights.django.ApplicationInsightsMiddleware',
+    "applicationinsights.django.ApplicationInsightsMiddleware",
     # ...
 ]
 ```

@@ -354,9 +354,10 @@ celery -A myproject worker -Q low-priority -c 8 -n low@%h
 def process_order(order_id, notify=True):
     pass
 
+
 # AFTER: Task with changed signature
 @shared_task
-def process_order(order_id, notify=True, priority='normal'):  # New param
+def process_order(order_id, notify=True, priority="normal"):  # New param
     pass
 ```
 
@@ -385,7 +386,7 @@ celery -A myproject inspect stats  # Check queue lengths
 @shared_task
 def process_order(order_id, notify=True, priority=None):
     if priority is None:
-        priority = 'normal'  # Handle old messages
+        priority = "normal"  # Handle old messages
     pass
 ```
 
@@ -396,7 +397,7 @@ Tasks with long `eta` or `countdown` values can cause issues:
 ```python
 # BAD: Task scheduled far in the future
 my_task.apply_async(eta=datetime.now() + timedelta(days=30))
-my_task.apply_async(countdown=60*60*24*30)  # 30 days
+my_task.apply_async(countdown=60 * 60 * 24 * 30)  # 30 days
 
 # Problems:
 # - Task signature might change before execution
@@ -437,9 +438,10 @@ Benefits:
 # celery.py
 from celery.signals import worker_shutting_down
 
+
 @worker_shutting_down.connect
 def worker_shutting_down_handler(sig, how, exitcode, **kwargs):
-    logger.info(f'Worker shutting down: signal={sig}, how={how}')
+    logger.info(f"Worker shutting down: signal={sig}, how={how}")
     # Perform cleanup
     cleanup_connections()
 ```
@@ -473,6 +475,7 @@ services:
 ```python
 # health.py
 from celery import current_app
+
 
 def celery_liveness():
     """Check if worker can receive tasks."""
@@ -515,18 +518,18 @@ def celery_readiness():
 # settings/production.py
 
 # Broker
-CELERY_BROKER_URL = os.environ['CELERY_BROKER_URL']
+CELERY_BROKER_URL = os.environ["CELERY_BROKER_URL"]
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_BROKER_CONNECTION_MAX_RETRIES = 10
 
 # Result backend
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'django-db')
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "django-db")
 CELERY_RESULT_EXPIRES = 60 * 60 * 24  # 24 hours
 
 # Serialization (JSON only for security)
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
 
 # Task execution
 CELERY_TASK_ACKS_LATE = True
@@ -541,7 +544,7 @@ CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
 CELERY_WORKER_DISABLE_RATE_LIMITS = False
 
 # Beat (single instance only)
-CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
 # Monitoring
 CELERY_SEND_EVENTS = True
@@ -577,11 +580,12 @@ networks:
 # Use environment variables or secrets manager
 import os
 
-CELERY_BROKER_URL = os.environ['CELERY_BROKER_URL']
+CELERY_BROKER_URL = os.environ["CELERY_BROKER_URL"]
 
 # Or use AWS Secrets Manager, HashiCorp Vault, etc.
 from myproject.secrets import get_secret
-CELERY_BROKER_URL = get_secret('celery/broker-url')
+
+CELERY_BROKER_URL = get_secret("celery/broker-url")
 ```
 
 ### Task Argument Validation
@@ -592,7 +596,7 @@ def secure_task(self, user_id, action):
     # Validate inputs
     if not isinstance(user_id, int):
         raise ValueError("Invalid user_id type")
-    if action not in ['activate', 'deactivate']:
+    if action not in ["activate", "deactivate"]:
         raise ValueError("Invalid action")
 
     # Process safely

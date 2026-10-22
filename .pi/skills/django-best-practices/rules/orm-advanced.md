@@ -9,9 +9,9 @@ Fetching massive amounts of data into Python to calculate sums, averages, or cou
 authors = Author.objects.all()
 
 for author in authors:
- # Triggers an additional query per author
- book_count = author.books.count()
- print(f"{author.name}: {book_count} books")
+    # Triggers an additional query per author
+    book_count = author.books.count()
+    print(f"{author.name}: {book_count} books")
 ```
 
 ### ✅ Right
@@ -19,11 +19,11 @@ for author in authors:
 # Calculates the count inside the database (1 query total)
 from django.db.models import Count
 
-authors = Author.objects.annotate(book_count=Count('books'))
+authors = Author.objects.annotate(book_count=Count("books"))
 
 for author in authors:
- # book_count is already computed and attached
- print(f"{author.name}: {author.book_count} books")
+    # book_count is already computed and attached
+    print(f"{author.name}: {author.book_count} books")
 ```
 
 ### Notes
@@ -51,7 +51,7 @@ product.save()
 from django.db.models import F
 
 # Atomically translates to: UPDATE product SET stock = stock - 1 WHERE id=1
-Product.objects.filter(id=1).update(stock=F('stock') - 1)
+Product.objects.filter(id=1).update(stock=F("stock") - 1)
 ```
 
 ### Notes
@@ -69,8 +69,8 @@ Standard queryset filters strictly compile an `AND` query . To filter objects un
 ### ❌ Wrong
 ```python
 # Fetches all active users from USA and Canada incorrectly separately
-active_usa = User.objects.filter(is_active=True, country='USA')
-active_canada = User.objects.filter(is_active=True, country='Canada')
+active_usa = User.objects.filter(is_active=True, country="USA")
+active_canada = User.objects.filter(is_active=True, country="Canada")
 result = list(active_usa) + list(active_canada)
 ```
 
@@ -79,10 +79,7 @@ result = list(active_usa) + list(active_canada)
 from django.db.models import Q
 
 # Single optimized query with explicit OR conditionals
-users = User.objects.filter(
- Q(country='USA') | Q(country='Canada'),
- is_active=True
-)
+users = User.objects.filter(Q(country="USA") | Q(country="Canada"), is_active=True)
 ```
 
 ### Notes
@@ -100,7 +97,7 @@ Saving large sets of objects one-by-one destroys performance definitively becaus
 ```python
 # Executes 10,000 distinct INSERT statements over the network
 for user_data in raw_data:
- User.objects.create(**user_data)
+    User.objects.create(**user_data)
 ```
 
 ### ✅ Right
@@ -126,15 +123,15 @@ Django fiercely caches querysets directly to prevent superfluous database hits. 
 ```python
 # Pulls all products into severe RAM destruction
 for product in Product.objects.all():
- export_to_csv(product)
+    export_to_csv(product)
 ```
 
 ### ✅ Right
 ```python
-# Disables queryset caching entirely directly 
+# Disables queryset caching entirely directly
 # Fetches rows gradually actively efficiently via server-side cursors internally
 for product in Product.objects.iterator(chunk_size=2000):
- export_to_csv(product)
+    export_to_csv(product)
 ```
 
 ### Notes
@@ -158,7 +155,7 @@ The ORM naturally lacks support fundamentally securely for extreme, incredibly d
 ```python
 # For exceptionally complex directly rigid scenarios
 # Use bound parameters purely intentionally strictly to block very SQL Injection completely
-Person.objects.raw('SELECT * FROM myapp_person WHERE last_name = %s', ['Lovelace'])
+Person.objects.raw("SELECT * FROM myapp_person WHERE last_name = %s", ["Lovelace"])
 ```
 
 ### Notes

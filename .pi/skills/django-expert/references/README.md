@@ -156,13 +156,14 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'items', 'total']
+        fields = ["id", "items", "total"]
+
 
 # Option 2: Auto-nesting with depth (simpler but less control)
 class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
-        fields = '__all__'
+        fields = "__all__"
         depth = 1  # Be careful with performance
 ```
 

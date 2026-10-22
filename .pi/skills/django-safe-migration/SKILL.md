@@ -79,8 +79,8 @@ Any operation that requires `ACCESS EXCLUSIVE` should be preceded by `SET LOCAL 
 For a normal transactional migration:
 
 ```python
-migrations.RunSQL("SET LOCAL lock_timeout = '2s'"),
-migrations.AlterField(...),  # or any ACCESS EXCLUSIVE operation
+(migrations.RunSQL("SET LOCAL lock_timeout = '2s'"),)
+(migrations.AlterField(...),)  # or any ACCESS EXCLUSIVE operation
 ```
 
 `SET LOCAL` scopes the timeout to the current transaction, so it does not affect other sessions or persist after the migration completes.

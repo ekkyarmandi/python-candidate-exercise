@@ -13,13 +13,13 @@ Django is secure by default, but you must configure it correctly and avoid commo
 User.objects.filter(email=user_input)
 
 # ✅ SAFE: Using parameters
-User.objects.raw('SELECT * FROM users WHERE email = %s', [user_input])
+User.objects.raw("SELECT * FROM users WHERE email = %s", [user_input])
 
 # ❌ DANGEROUS: String formatting
 User.objects.raw(f'SELECT * FROM users WHERE email = "{user_input}"')
 
 # ❌ DANGEROUS: String concatenation
-cursor.execute('SELECT * FROM users WHERE id = ' + user_id)
+cursor.execute("SELECT * FROM users WHERE id = " + user_id)
 ```
 
 **Rule**: Never use string formatting or concatenation for SQL queries.
@@ -45,9 +45,7 @@ cursor.execute('SELECT * FROM users WHERE id = ' + user_id)
 from django.utils.html import escape
 
 # ✅ GOOD: Escape user input
-return JsonResponse({
-    'message': escape(user_message)
-})
+return JsonResponse({"message": escape(user_message)})
 ```
 
 **Rule**: Never use `|safe` or `mark_safe()` on user-generated content.
@@ -74,10 +72,11 @@ return JsonResponse({
 ```python
 from django.views.decorators.csrf import csrf_exempt, csrf_protect
 
+
 # ✅ DEFAULT: CSRF protection enabled
 @csrf_protect
-def my_view(request):
-    ...
+def my_view(request): ...
+
 
 # ❌ DANGEROUS: Only exempt for APIs with other auth (tokens)
 @csrf_exempt
@@ -103,18 +102,20 @@ document.body.addEventListener('htmx:configRequest', (event) => {
 from django.contrib.auth.decorators import login_required
 from rest_framework.permissions import IsAuthenticated
 
+
 # ✅ GOOD: Require authentication
 @login_required
-def user_profile(request):
-    ...
+def user_profile(request): ...
+
 
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
     ...
 
+
 # ❌ BAD: Checking authentication manually
 def user_profile(request):
-    if 'user_id' in request.session:  # Fragile!
+    if "user_id" in request.session:  # Fragile!
         ...
 ```
 
@@ -125,17 +126,21 @@ def user_profile(request):
 
 # ✅ GOOD: Strong password validation
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-     'OPTIONS': {'min_length': 12}},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 12},
+    },
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 # ✅ GOOD: Use Argon2 for password hashing
 PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.Argon2PasswordHasher',
-    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
 ]
 ```
 
@@ -149,7 +154,8 @@ PASSWORD_HASHERS = [
 def delete_post(request, post_id):
     post = Post.objects.get(id=post_id)
     post.delete()  # Any logged-in user can delete any post!
-    return HttpResponse('Deleted')
+    return HttpResponse("Deleted")
+
 
 # ✅ GOOD: Check authorization
 @login_required
@@ -158,19 +164,22 @@ def delete_post(request, post_id):
 
     # Authorization check
     if post.author != request.user and not request.user.is_staff:
-        return HttpResponseForbidden('You cannot delete this post')
+        return HttpResponseForbidden("You cannot delete this post")
 
     post.delete()
-    return HttpResponse('Deleted')
+    return HttpResponse("Deleted")
+
 
 # ✅ BETTER: Use permissions
 from rest_framework import permissions
+
 
 class IsOwnerOrReadOnly(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
         return obj.author == request.user
+
 
 class PostDetailView(APIView):
     permission_classes = [IsOwnerOrReadOnly]
@@ -186,13 +195,13 @@ class PostDetailView(APIView):
 
 # ❌ DANGEROUS in production
 DEBUG = True
-SECRET_KEY = 'hardcoded-secret-key'
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = "hardcoded-secret-key"
+ALLOWED_HOSTS = ["*"]
 
 # ✅ GOOD: Production settings
 DEBUG = False
-SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
-ALLOWED_HOSTS = ['yourdomain.com', 'www.yourdomain.com']
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
+ALLOWED_HOSTS = ["yourdomain.com", "www.yourdomain.com"]
 
 # ✅ GOOD: Security headers
 SECURE_SSL_REDIRECT = True
@@ -200,7 +209,7 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = "DENY"
 SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
@@ -211,19 +220,19 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+DEBUG = os.environ.get("DEBUG", "False") == "True"
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
 
 # Database from environment
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME'),
-        'USER': os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("DB_NAME"),
+        "USER": os.environ.get("DB_USER"),
+        "PASSWORD": os.environ.get("DB_PASSWORD"),
+        "HOST": os.environ.get("DB_HOST"),
+        "PORT": os.environ.get("DB_PORT", "5432"),
     }
 }
 ```
@@ -235,7 +244,9 @@ DATABASES = {
 ```python
 # ✅ GOOD: Don't log sensitive data
 import logging
+
 logger = logging.getLogger(__name__)
+
 
 def process_payment(payment_data):
     # ❌ BAD: Logs credit card number
@@ -244,19 +255,22 @@ def process_payment(payment_data):
     # ✅ GOOD: Log only safe data
     logger.info(f"Processing payment for order {payment_data['order_id']}")
 
+
 # ✅ GOOD: Don't expose sensitive fields in API
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name']
+        fields = ["id", "email", "first_name", "last_name"]
         # NOT password, social_security_number, etc.
+
 
 # ✅ GOOD: Redact in admin interface
 from django.contrib import admin
 
+
 class UserAdmin(admin.ModelAdmin):
-    readonly_fields = ['password']  # Don't allow editing
-    exclude = ['social_security_number']  # Don't show at all
+    readonly_fields = ["password"]  # Don't allow editing
+    exclude = ["social_security_number"]  # Don't show at all
 ```
 
 **For database encryption:**
@@ -268,6 +282,7 @@ pip install django-encrypted-model-fields
 
 ```python
 from encrypted_model_fields.fields import EncryptedCharField
+
 
 class PaymentInfo(models.Model):
     card_number = EncryptedCharField(max_length=16)
@@ -282,14 +297,15 @@ import pickle
 import json
 
 # ❌ DANGEROUS: pickle can execute arbitrary code
-data = pickle.loads(request.POST['data'])
+data = pickle.loads(request.POST["data"])
 
 # ✅ SAFE: Use JSON
-data = json.loads(request.POST['data'])
+data = json.loads(request.POST["data"])
 
 # ✅ SAFE: Use Django's serialization
 from django.core import serializers
-data = serializers.deserialize('json', request.POST['data'])
+
+data = serializers.deserialize("json", request.POST["data"])
 ```
 
 **Rule**: Never use `pickle` or `eval()` on user input.
@@ -319,7 +335,9 @@ redis==5.0.1
 
 ```python
 import logging
+
 logger = logging.getLogger(__name__)
+
 
 # ✅ GOOD: Log security events
 @login_required
@@ -330,27 +348,30 @@ def delete_account(request):
     logger.warning(
         f"Account deletion requested",
         extra={
-            'user_id': user.id,
-            'user_email': user.email,
-            'ip_address': request.META.get('REMOTE_ADDR'),
-            'user_agent': request.META.get('HTTP_USER_AGENT'),
-        }
+            "user_id": user.id,
+            "user_email": user.email,
+            "ip_address": request.META.get("REMOTE_ADDR"),
+            "user_agent": request.META.get("HTTP_USER_AGENT"),
+        },
     )
 
     user.delete()
-    return HttpResponse('Account deleted')
+    return HttpResponse("Account deleted")
+
 
 # ✅ GOOD: Log failed authentication
 from django.contrib.auth.signals import user_login_failed
+
 
 def log_failed_login(sender, credentials, request, **kwargs):
     logger.warning(
         f"Failed login attempt",
         extra={
-            'username': credentials.get('username'),
-            'ip_address': request.META.get('REMOTE_ADDR'),
-        }
+            "username": credentials.get("username"),
+            "ip_address": request.META.get("REMOTE_ADDR"),
+        },
     )
+
 
 user_login_failed.connect(log_failed_login)
 ```
@@ -363,20 +384,20 @@ user_login_failed.connect(log_failed_login)
 
 ```python
 # settings.py
-X_FRAME_OPTIONS = 'DENY'  # Prevent embedding in iframes
+X_FRAME_OPTIONS = "DENY"  # Prevent embedding in iframes
 
 # Or allow specific domains
-X_FRAME_OPTIONS = 'SAMEORIGIN'  # Only same domain
+X_FRAME_OPTIONS = "SAMEORIGIN"  # Only same domain
 ```
 
 ### Host Header Validation
 
 ```python
 # settings.py
-ALLOWED_HOSTS = ['yourdomain.com', 'www.yourdomain.com']
+ALLOWED_HOSTS = ["yourdomain.com", "www.yourdomain.com"]
 
 # Never use:
-ALLOWED_HOSTS = ['*']  # Allows host header injection attacks
+ALLOWED_HOSTS = ["*"]  # Allows host header injection attacks
 ```
 
 ### File Upload Security
@@ -389,22 +410,25 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
 # Validate file types
 from django.core.exceptions import ValidationError
 
+
 def validate_file_extension(value):
     import os
+
     ext = os.path.splitext(value.name)[1]
-    valid_extensions = ['.pdf', '.jpg', '.png', '.jpeg']
+    valid_extensions = [".pdf", ".jpg", ".png", ".jpeg"]
     if ext.lower() not in valid_extensions:
-        raise ValidationError('Unsupported file extension.')
+        raise ValidationError("Unsupported file extension.")
+
 
 class Document(models.Model):
     file = models.FileField(
-        upload_to='documents/',
-        validators=[validate_file_extension]
+        upload_to="documents/", validators=[validate_file_extension]
     )
 
+
 # ✅ GOOD: Store uploads outside web root
-MEDIA_ROOT = '/var/www/media/'  # Not in static files directory!
-MEDIA_URL = '/media/'
+MEDIA_ROOT = "/var/www/media/"  # Not in static files directory!
+MEDIA_URL = "/media/"
 ```
 
 ### Rate Limiting
@@ -416,15 +440,15 @@ pip install django-ratelimit
 ```python
 from django_ratelimit.decorators import ratelimit
 
+
 # Limit login attempts
-@ratelimit(key='ip', rate='5/m', block=True)
-def login_view(request):
-    ...
+@ratelimit(key="ip", rate="5/m", block=True)
+def login_view(request): ...
+
 
 # Limit API calls
-@ratelimit(key='user', rate='100/h', block=True)
-def api_endpoint(request):
-    ...
+@ratelimit(key="user", rate="100/h", block=True)
+def api_endpoint(request): ...
 ```
 
 ## Security Checklist

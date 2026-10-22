@@ -28,7 +28,7 @@ Use `select_related()` for **foreign key** and **one-to-one** relationships:
 
 ```python
 # ✅ GOOD: 1 query with JOIN
-users = User.objects.select_related('profile').all()
+users = User.objects.select_related("profile").all()
 for user in users:
     print(user.profile.bio)  # No additional queries!
 ```
@@ -52,7 +52,7 @@ for user in users:
         print(group.name)
 
 # ✅ GOOD: 2 queries total
-users = User.objects.prefetch_related('groups').all()
+users = User.objects.prefetch_related("groups").all()
 for user in users:
     for group in user.groups.all():  # No additional queries!
         print(group.name)
@@ -70,7 +70,7 @@ WHERE user_groups.user_id IN (1, 2, 3, ...);           -- Query 2
 
 ```python
 # Get users with their profiles AND groups in 2 queries
-users = User.objects.select_related('profile').prefetch_related('groups').all()
+users = User.objects.select_related("profile").prefetch_related("groups").all()
 ```
 
 ## Advanced Prefetching
@@ -83,8 +83,7 @@ from django.db.models import Prefetch
 # Only prefetch active posts
 users = User.objects.prefetch_related(
     Prefetch(
-        'posts',
-        queryset=Post.objects.filter(is_published=True).order_by('-created_at')
+        "posts", queryset=Post.objects.filter(is_published=True).order_by("-created_at")
     )
 ).all()
 ```
@@ -94,9 +93,7 @@ users = User.objects.prefetch_related(
 ```python
 # Get users with their posts and each post's comments
 users = User.objects.prefetch_related(
-    'posts',
-    'posts__comments',
-    'posts__comments__author'
+    "posts", "posts__comments", "posts__comments__author"
 ).all()
 ```
 
@@ -112,21 +109,20 @@ class UserManager(models.Manager):
 
     def with_profile(self):
         """Always include profile to prevent N+1."""
-        return self.select_related('profile')
+        return self.select_related("profile")
 
     def with_full_details(self):
         """Get users with all related data."""
-        return self.select_related('profile').prefetch_related(
-            'groups',
-            'user_permissions',
-            Prefetch(
-                'posts',
-                queryset=Post.objects.filter(is_published=True)
-            )
+        return self.select_related("profile").prefetch_related(
+            "groups",
+            "user_permissions",
+            Prefetch("posts", queryset=Post.objects.filter(is_published=True)),
         )
+
 
 class User(AbstractUser):
     objects = UserManager()
+
 
 # Usage
 active_users = User.objects.active().with_profile()
@@ -141,18 +137,18 @@ Load only specific fields when you don't need the entire model:
 
 ```python
 # only() - Load ONLY specified fields
-users = User.objects.only('id', 'email', 'first_name')
+users = User.objects.only("id", "email", "first_name")
 # SELECT id, email, first_name FROM users
 
 # defer() - Load ALL fields EXCEPT specified
-users = User.objects.defer('password', 'last_login')
+users = User.objects.defer("password", "last_login")
 # SELECT id, email, first_name, ... FROM users (excludes password, last_login)
 ```
 
 **Warning**: Accessing deferred fields triggers an additional query!
 
 ```python
-users = User.objects.defer('bio').all()
+users = User.objects.defer("bio").all()
 for user in users:
     print(user.bio)  # Additional query per user!
 ```
@@ -163,14 +159,14 @@ Get dictionaries or tuples instead of model instances (faster):
 
 ```python
 # values() - Returns dictionaries
-users = User.objects.values('id', 'email')
+users = User.objects.values("id", "email")
 # [{'id': 1, 'email': 'user@example.com'}, ...]
 
 # values_list() - Returns tuples
-user_ids = User.objects.values_list('id', flat=True)
+user_ids = User.objects.values_list("id", flat=True)
 # [1, 2, 3, 4, ...]
 
-user_data = User.objects.values_list('id', 'email')
+user_data = User.objects.values_list("id", "email")
 # [(1, 'user@example.com'), (2, 'other@example.com'), ...]
 ```
 
@@ -203,9 +199,7 @@ from django.db.models import Count, Avg, Max, Min, Sum
 
 # Get statistics about all users
 stats = User.objects.aggregate(
-    total=Count('id'),
-    avg_posts=Avg('posts__count'),
-    max_created=Max('created_at')
+    total=Count("id"), avg_posts=Avg("posts__count"), max_created=Max("created_at")
 )
 # {'total': 100, 'avg_posts': 5.2, 'max_created': datetime(...)}
 ```
@@ -219,8 +213,8 @@ from django.db.models import Count, Q
 
 # Add post count to each user
 users = User.objects.annotate(
-    total_posts=Count('posts'),
-    published_posts=Count('posts', filter=Q(posts__is_published=True))
+    total_posts=Count("posts"),
+    published_posts=Count("posts", filter=Q(posts__is_published=True)),
 )
 
 for user in users:
@@ -239,10 +233,7 @@ for i in range(1000):
     User.objects.create(email=f"user{i}@example.com")
 
 # ✅ GOOD: 1 query
-users = [
-    User(email=f"user{i}@example.com")
-    for i in range(1000)
-]
+users = [User(email=f"user{i}@example.com") for i in range(1000)]
 User.objects.bulk_create(users, batch_size=500)
 ```
 
@@ -261,7 +252,7 @@ for user in users:
 # ✅ GOOD: 1 query
 for user in users:
     user.is_active = False
-User.objects.bulk_update(users, ['is_active'], batch_size=500)
+User.objects.bulk_update(users, ["is_active"], batch_size=500)
 ```
 
 ### update()
@@ -295,9 +286,9 @@ class User(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=['created_at']),  # Single field
-            models.Index(fields=['is_active', 'created_at']),  # Composite
-            models.Index(fields=['-created_at']),  # Descending order
+            models.Index(fields=["created_at"]),  # Single field
+            models.Index(fields=["is_active", "created_at"]),  # Composite
+            models.Index(fields=["-created_at"]),  # Descending order
         ]
 ```
 
@@ -321,14 +312,10 @@ class User(models.Model):
 
 ```python
 # ✅ GOOD: Filter before annotation
-active_users = User.objects.filter(is_active=True).annotate(
-    post_count=Count('posts')
-)
+active_users = User.objects.filter(is_active=True).annotate(post_count=Count("posts"))
 
 # ❌ BAD: Annotate then filter (processes all rows first)
-active_users = User.objects.annotate(
-    post_count=Count('posts')
-).filter(is_active=True)
+active_users = User.objects.annotate(post_count=Count("posts")).filter(is_active=True)
 ```
 
 ### 2. Use iterator() for Large QuerySets
@@ -353,9 +340,7 @@ recent_users = verified_users.filter(created_at__gte=last_week)
 
 # ✅ GOOD: Single query
 recent_users = User.objects.filter(
-    is_active=True,
-    email_verified=True,
-    created_at__gte=last_week
+    is_active=True, email_verified=True, created_at__gte=last_week
 )
 ```
 
@@ -366,12 +351,14 @@ Use transactions for operations that must succeed or fail together:
 ```python
 from django.db import transaction
 
+
 # Atomic decorator
 @transaction.atomic
 def create_user_with_profile(data):
-    user = User.objects.create(**data['user'])
-    Profile.objects.create(user=user, **data['profile'])
+    user = User.objects.create(**data["user"])
+    Profile.objects.create(user=user, **data["profile"])
     return user
+
 
 # Atomic context manager
 def transfer_credits(from_user, to_user, amount):
@@ -381,6 +368,7 @@ def transfer_credits(from_user, to_user, amount):
 
         to_user.credits += amount
         to_user.save()
+
 
 # Rollback on error
 try:
@@ -398,19 +386,16 @@ Sometimes the ORM can't express complex queries efficiently:
 
 ```python
 # Use raw SQL as a last resort
-users = User.objects.raw('''
+users = User.objects.raw("""
     SELECT u.*, COUNT(p.id) as post_count
     FROM users u
     LEFT JOIN posts p ON u.id = p.user_id
     GROUP BY u.id
     HAVING COUNT(p.id) > 10
-''')
+""")
 
 # ALWAYS use parameters to prevent SQL injection
-users = User.objects.raw(
-    'SELECT * FROM users WHERE created_at > %s',
-    [start_date]
-)
+users = User.objects.raw("SELECT * FROM users WHERE created_at > %s", [start_date])
 ```
 
 ## Debugging Queries
@@ -423,6 +408,7 @@ print(queryset.query)  # Print SQL
 
 # Or in shell
 from django.db import connection
+
 print(connection.queries)  # All queries executed
 ```
 

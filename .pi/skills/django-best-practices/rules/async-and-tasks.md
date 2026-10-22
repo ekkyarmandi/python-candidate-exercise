@@ -7,9 +7,9 @@ Celery tasks are guaranteed to run *at least once*, not *exactly once*. Network 
 ```python
 @shared_task
 def process_payment(order_id, amount):
- # Dangerous: if this task retries, we charge the user multiple times!
- stripe.Charge.create(amount=amount)
- Order.objects.filter(id=order_id).update(paid=True)
+    # Dangerous: if this task retries, we charge the user multiple times!
+    stripe.Charge.create(amount=amount)
+    Order.objects.filter(id=order_id).update(paid=True)
 ```
 
 ### ✅ Right
@@ -42,7 +42,8 @@ Passing massive ORM objects into Celery task signatures breaks fundamentally whe
 # Passing an entire ORM object into the message broker
 @shared_task
 def send_email(user):
- mail.send(user.email)
+    mail.send(user.email)
+
 
 # caller: send_email.delay(user_object)
 ```
@@ -52,9 +53,10 @@ def send_email(user):
 # Pass ONLY the primary key integer
 @shared_task
 def send_email(user_id):
- # Fetch fresh data from the database inside the worker
- user = User.objects.get(id=user_id)
- mail.send(user.email)
+    # Fetch fresh data from the database inside the worker
+    user = User.objects.get(id=user_id)
+    mail.send(user.email)
+
 
 # caller: send_email.delay(user.id)
 ```
@@ -72,19 +74,20 @@ Django supports `async def` views since 3.1. However, making a view `async` comp
 ### ❌ Wrong
 ```python
 async def my_view(request):
- # Blocks the async event loop permanently
- users = User.objects.all()
- return JsonResponse({'users': len(users)})
+    # Blocks the async event loop permanently
+    users = User.objects.all()
+    return JsonResponse({"users": len(users)})
 ```
 
 ### ✅ Right
 ```python
 from asgiref.sync import sync_to_async
 
+
 async def my_view(request):
- # Wrap ORM calls correctly
- count = await sync_to_async(User.objects.count)()
- return JsonResponse({'users': count})
+    # Wrap ORM calls correctly
+    count = await sync_to_async(User.objects.count)()
+    return JsonResponse({"users": count})
 ```
 
 ### Notes

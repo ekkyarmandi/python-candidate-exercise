@@ -41,8 +41,8 @@ The easiest way to accidentally cause an N+1 query bug is to change a Serializer
 ```python
 @pytest.mark.django_db
 def test_api_view(client):
- # No protection against N+1 regression
- response = client.get('/api/users/')
+    # No protection against N+1 regression
+    response = client.get("/api/users/")
 ```
 
 ### ✅ Right

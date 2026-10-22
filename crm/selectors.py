@@ -29,8 +29,10 @@ def get_selected_contact(selected_id, contacts):
     selected = None
     if selected_id:
         try:
-            selected = Contact.objects.prefetch_related("activities").get(pk=selected_id)
-        except (Contact.DoesNotExist, ValueError):
+            selected = Contact.objects.prefetch_related("activities").get(
+                pk=selected_id
+            )
+        except Contact.DoesNotExist, ValueError:
             selected = None
     if selected is None:
         selected = contacts.first()
